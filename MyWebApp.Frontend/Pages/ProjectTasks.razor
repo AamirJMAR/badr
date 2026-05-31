@@ -1,0 +1,139 @@
+@page "/categories/{ProjectId:int}/tasks"
+@page "/projects/{ProjectId:int}/tasks"
+@inject HttpClient Http
+@using Microsoft.AspNetCore.Components
+
+<div class="container mt-4">
+
+    @if (category == null)
+    {
+        <p>Chargement...</p>
+    }
+    else
+    {
+        <div class="mb-3">
+            <a href="/categories" class="text-decoration-none">← Retour aux catégories</a>
+        </div>
+
+        <h1 class="fw-bold">
+            📂 @category.Name
+            <span class="badge @GetStatusClass(category.Status)">
+                @GetStatusLabel(category.Status)
+            </span>
+        </h1>
+
+        <p class="text-muted">
+            Échéance : @category.Deadline.ToString("dd MMM yyyy") —
+            @category.TaskCount tâche@(category.TaskCount == 1 ? "" : "s")
+        </p>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                @if (tasks.Count == 0)
+                {
+                    <p class="text-muted mb-0">Aucune tâche associée à cette catégorie.</p>
+                }
+                else
+                {
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Titre</th>
+                                <th>Échéance</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in tasks)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="/tasks/@task.Id" class="text-decoration-none fw-bold">
+                                            @task.Title
+                                        </a>
+                                    </td>
+                                    <td>@task.Deadline.ToString("dd MMM yyyy")</td>
+                                    <td>
+                                        <span class="badge @GetTaskStatusClass(task.Status)">
+                                            @task.Status
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public int ProjectId { get; set; }
+
+    private CategoryDto? category;
+    private List<TaskItem> tasks = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategory();
+        await LoadTasks();
+    }
+
+    private async Task LoadCategory()
+    {
+        category = await Http.GetFromJsonAsync<CategoryDto>($"api/projects/{ProjectId}");
+    }
+
+    private async Task LoadTasks()
+    {
+        tasks = await Http.GetFromJsonAsync<List<TaskItem>>($"api/tasks?projectId={ProjectId}")
+                ?? new List<TaskItem>();
+
+        if (category != null)
+            category.TaskCount = tasks.Count;
+    }
+
+    private static string GetStatusClass(string status) => status switch
+    {
+        "OnTrack" => "bg-success",
+        "AtRisk" => "bg-warning text-dark",
+        "Delayed" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private static string GetStatusLabel(string status) => status switch
+    {
+        "OnTrack" => "Dans les délais",
+        "AtRisk" => "À risque",
+        "Delayed" => "En retard",
+        _ => status
+    };
+
+    private static string GetTaskStatusClass(string status) => status switch
+    {
+        "Open" => "bg-warning text-dark",
+        "InProgress" => "bg-info",
+        "Done" => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    private class TaskItem
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public DateTime Deadline { get; set; }
+        public string Status { get; set; } = "";
+    }
+
+    private class CategoryDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public DateTime Deadline { get; set; }
+        public string Status { get; set; } = "";
+        public int TaskCount { get; set; }
+    }
+}

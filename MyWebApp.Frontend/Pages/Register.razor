@@ -1,0 +1,66 @@
+@page "/register"
+
+@using MyWebApp.Frontend.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card shadow-sm border-0" style="width: 400px;">
+        <div class="card-body p-4">
+            <h3 class="fw-bold text-center mb-3">Create Account</h3>
+            <p class="text-muted text-center mb-4">
+                Register to access the PMO dashboard
+            </p>
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert @(isError ? "alert-danger" : "alert-success")">
+                    @message
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input class="form-control" @bind="username" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" @bind="password" />
+            </div>
+
+            <button class="btn btn-primary w-100" @onclick="RegisterUser">
+                Create Account
+            </button>
+
+            <div class="text-center mt-3">
+                <a href="/login" class="link-primary">
+                    Already have an account? Sign in
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string username = "";
+    private string password = "";
+    private string? message;
+    private bool isError;
+
+    private async Task RegisterUser()
+    {
+        var success = await AuthService.RegisterAsync(username, password);
+
+        if (success)
+        {
+            isError = false;
+            message = "Account created successfully. You can now sign in.";
+        }
+        else
+        {
+            isError = true;
+            message = "Username already exists.";
+        }
+    }
+}

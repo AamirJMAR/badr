@@ -1,0 +1,356 @@
+@page "/tasks"
+@inject HttpClient Http
+
+<div class="container mt-4">
+
+    <h1 class="fw-bold">✅ Tâches</h1>
+    <p class="text-muted">
+        Gérez les tâches de vos projets. La couleur du nom indique l'urgence de l'échéance.
+    </p>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="fw-bold">➕ Ajouter une tâche</h5>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Catégorie</label>
+                <select class="form-select" @bind="newTask.ProjectId">
+                    <option value="">— Sélectionner —</option>
+                    @foreach (var project in projects)
+                    {
+                        <option value="@project.Id">@project.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Titre</label>
+                    <input class="form-control" @bind="newTask.Title" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Échéance</label>
+                    <input type="date"
+                           class="form-control"
+                           @bind-value="newTask.Deadline"
+                           @bind-value:format="yyyy-MM-dd" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Statut</label>
+                    <select class="form-select" @bind="newTask.Status">
+                        <option value="Open">Ouverte</option>
+                        <option value="InProgress">En cours</option>
+                        <option value="Done">Terminée</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary mt-3" @onclick="AddTask">
+                ➕ Ajouter
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Filtrer par statut</label>
+                    <select class="form-select" @bind="statusFilter">
+                        <option value="">Tous</option>
+                        <option value="Open">Ouverte</option>
+                        <option value="InProgress">En cours</option>
+                        <option value="Done">Terminée</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Filtrer par catégorie</label>
+                    <select class="form-select" @bind="projectFilterId">
+                        <option value="0">Toutes</option>
+                        @foreach (var project in projects)
+                        {
+                            <option value="@project.Id">@project.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Tri par échéance</label>
+                    <div class="input-group">
+                        <button class="btn btn-outline-primary" @onclick="() => SetDeadlineSort(true)">
+                            Croissant
+                        </button>
+                        <button class="btn btn-outline-primary" @onclick="() => SetDeadlineSort(false)">
+                            Décroissant
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-3 mb-3 small text-muted">
+                <span><span class="task-title-cell task-title-far d-inline-block">■</span> Échéance &gt; 7 jours</span>
+                <span><span class="task-title-cell task-title-soon d-inline-block">■</span> Échéance dans 7 jours</span>
+                <span><span class="task-title-cell task-title-overdue d-inline-block">■</span> Aujourd'hui ou dépassée</span>
+            </div>
+
+            <div class="table-responsive">
+            <table class="table align-middle tasks-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="task-title-col">Titre</th>
+                        <th>Catégorie</th>
+                        <th>Échéance</th>
+                        <th>Statut</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var task in FilteredTasks())
+                    {
+                        var displayDeadline = editingTaskId == task.Id ? editTask.Deadline : task.Deadline;
+                        var displayStatus = editingTaskId == task.Id ? editTask.Status : task.Status;
+                        var titleClass = GetDeadlineTitleClass(displayDeadline);
+
+                        <tr>
+                            <td class="task-title-col">
+                                @if (editingTaskId == task.Id)
+                                {
+                                    <input class="form-control form-control-sm task-title-input @titleClass"
+                                           @bind="editTask.Title" />
+                                }
+                                else
+                                {
+                                    <span class="task-title-cell @titleClass" title="@task.Title">
+                                        @task.Title
+                                    </span>
+                                }
+                            </td>
+
+                            <td>
+                                @{
+                                    var project = projects.FirstOrDefault(p => p.Id == task.ProjectId);
+                                }
+                                @if (project != null)
+                                {
+                                    <span class="badge bg-primary">@project.Name</span>
+                                }
+                            </td>
+
+                            <td>
+                                @if (editingTaskId == task.Id)
+                                {
+                                    <input type="date"
+                                           class="form-control form-control-sm"
+                                           @bind-value="editTask.Deadline"
+                                           @bind-value:format="yyyy-MM-dd" />
+                                }
+                                else
+                                {
+                                    @task.Deadline.ToString("dd MMM yyyy")
+                                }
+                            </td>
+
+                            <td>
+                                <span class="badge @GetBadgeClass(displayStatus)">
+                                    @GetStatusLabel(displayStatus)
+                                </span>
+
+                                <div class="btn-group btn-group-sm ms-1 flex-nowrap">
+                                    @if (editingTaskId == task.Id)
+                                    {
+                                        <button class="btn btn-outline-secondary" @onclick="SetEditOpen">Ouverte</button>
+                                        <button class="btn btn-outline-info" @onclick="SetEditInProgress">En cours</button>
+                                        <button class="btn btn-outline-success" @onclick="SetEditDone">Terminée</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-secondary" @onclick="() => SetOpen(task.Id)">Ouverte</button>
+                                        <button class="btn btn-outline-info" @onclick="() => SetInProgress(task.Id)">En cours</button>
+                                        <button class="btn btn-outline-success" @onclick="() => SetDone(task.Id)">Terminée</button>
+                                    }
+                                </div>
+                            </td>
+
+                            <td class="text-center">
+                                @if (editingTaskId == task.Id)
+                                {
+                                    <button class="btn btn-sm btn-success me-1" title="Enregistrer" @onclick="SaveEdit">✅</button>
+                                    <button class="btn btn-sm btn-secondary me-1" title="Annuler" @onclick="CancelEdit">❌</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-warning me-1" title="Modifier" @onclick="() => StartEdit(task)">✏️</button>
+                                    <button class="btn btn-sm btn-danger" title="Supprimer" @onclick="() => DeleteTask(task.Id)">🗑️</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+
+            @if (!FilteredTasks().Any())
+            {
+                <p class="text-muted mb-0">Aucune tâche pour le moment.</p>
+            }
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private List<TaskRow> tasks = new();
+    private List<ProjectDto> projects = new();
+
+    private int? editingTaskId;
+    private TaskRow editTask = new();
+
+    private string statusFilter = "";
+    private int? projectFilterId = 0;
+    private bool sortDeadlineAsc = true;
+
+    private TaskRow newTask = new()
+    {
+        Deadline = DateTime.Today,
+        Status = "Open",
+        ProjectId = null
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+        await LoadTasks();
+    }
+
+    private async Task LoadProjects()
+    {
+        projects = await Http.GetFromJsonAsync<List<ProjectDto>>("api/projects")
+                   ?? new List<ProjectDto>();
+    }
+
+    private async Task LoadTasks()
+    {
+        tasks = await Http.GetFromJsonAsync<List<TaskRow>>("api/tasks")
+                ?? new List<TaskRow>();
+    }
+
+    private async Task AddTask()
+    {
+        await Http.PostAsJsonAsync("api/tasks", newTask);
+        newTask = new TaskRow { Deadline = DateTime.Today, Status = "Open", ProjectId = null };
+        await LoadTasks();
+    }
+
+    private IEnumerable<TaskRow> FilteredTasks()
+    {
+        var query = tasks.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+            query = query.Where(t => t.Status == statusFilter);
+
+        if (projectFilterId.HasValue && projectFilterId.Value > 0)
+            query = query.Where(t => t.ProjectId == projectFilterId.Value);
+
+        query = sortDeadlineAsc
+            ? query.OrderBy(t => t.Deadline)
+            : query.OrderByDescending(t => t.Deadline);
+
+        return query;
+    }
+
+    private void SetDeadlineSort(bool ascending) => sortDeadlineAsc = ascending;
+
+    private void StartEdit(TaskRow task)
+    {
+        editingTaskId = task.Id;
+        editTask = new TaskRow
+        {
+            Id = task.Id,
+            Title = task.Title,
+            Deadline = task.Deadline,
+            Status = task.Status,
+            ProjectId = task.ProjectId
+        };
+    }
+
+    private async Task SaveEdit()
+    {
+        await Http.PutAsJsonAsync($"api/tasks/{editTask.Id}", editTask);
+        editingTaskId = null;
+        await LoadTasks();
+    }
+
+    private void CancelEdit() => editingTaskId = null;
+
+    private async Task SetOpen(int id) => await UpdateStatus(id, "Open");
+    private async Task SetInProgress(int id) => await UpdateStatus(id, "InProgress");
+    private async Task SetDone(int id) => await UpdateStatus(id, "Done");
+
+    private async Task UpdateStatus(int id, string status)
+    {
+        var taskToUpdate = tasks.FirstOrDefault(t => t.Id == id);
+        if (taskToUpdate == null)
+            return;
+
+        taskToUpdate.Status = status;
+        await Http.PutAsJsonAsync($"api/tasks/{id}", taskToUpdate);
+        await LoadTasks();
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        await Http.DeleteAsync($"api/tasks/{id}");
+        await LoadTasks();
+    }
+
+    private void SetEditOpen() => editTask.Status = "Open";
+    private void SetEditInProgress() => editTask.Status = "InProgress";
+    private void SetEditDone() => editTask.Status = "Done";
+
+    private static string GetDeadlineTitleClass(DateTime deadline)
+    {
+        var daysUntil = (deadline.Date - DateTime.Today).Days;
+
+        if (daysUntil <= 0)
+            return "task-title-overdue";
+
+        if (daysUntil <= 7)
+            return "task-title-soon";
+
+        return "task-title-far";
+    }
+
+    private static string GetBadgeClass(string status) => status switch
+    {
+        "Open" => "bg-warning text-dark",
+        "InProgress" => "bg-info",
+        "Done" => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    private static string GetStatusLabel(string status) => status switch
+    {
+        "Open" => "Ouverte",
+        "InProgress" => "En cours",
+        "Done" => "Terminée",
+        _ => status
+    };
+
+    private class TaskRow
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public DateTime Deadline { get; set; }
+        public string Status { get; set; } = "";
+        public int? ProjectId { get; set; }
+    }
+
+    private class ProjectDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+}

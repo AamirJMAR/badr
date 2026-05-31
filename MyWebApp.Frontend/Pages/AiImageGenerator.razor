@@ -1,0 +1,58 @@
+@page "/ai-image-generator"
+@inject HttpClient Http
+
+<h3 class="fw-bold">🎨 Génération d’image par IA</h3>
+
+<p class="text-muted">
+    Entrez une description, puis générez une image automatiquement.
+</p>
+
+<div class="mb-3">
+    <label class="form-label">Description de l’image</label>
+    <textarea class="form-control" rows="3"
+              @bind="prompt"></textarea>
+</div>
+
+<button class="btn btn-primary"
+        @onclick="GenerateImage"
+        disabled="@isLoading">
+    @(isLoading ? "Génération en cours..." : "Générer")
+</button>
+
+@if (!string.IsNullOrWhiteSpace(imageUrl))
+{
+    <div class="mt-4">
+        <img src="@imageUrl" class="img-fluid rounded shadow" />
+    </div>
+}
+
+@code {
+    private string prompt = "";
+    private bool isLoading = false;
+    private string? imageUrl;
+
+    private async Task GenerateImage()
+    {
+        isLoading = true;
+        imageUrl = null;
+
+        var response = await Http.PostAsJsonAsync(
+            "api/image/generate",
+            new { Prompt = prompt }
+        );
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content
+                .ReadFromJsonAsync<ImageResult>();
+            imageUrl = result?.ImageUrl;
+        }
+
+        isLoading = false;
+    }
+
+    private class ImageResult
+    {
+        public string ImageUrl { get; set; } = "";
+    }
+}

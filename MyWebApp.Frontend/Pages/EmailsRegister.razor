@@ -1,0 +1,421 @@
+@page "/emails"
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="fw-bold mb-1">Emails</h1>
+        <p class="text-muted mb-0">
+            Import depuis Outlook via synchronisation (Power Automate en production, mode démo en local).
+        </p>
+    </div>
+    <button class="btn btn-primary"
+            @onclick="SyncEmails"
+            disabled="@isSyncing">
+        @if (isSyncing)
+        {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            <span>Synchronisation…</span>
+        }
+        else
+        {
+            <span>📧 Synchroniser les emails</span>
+        }
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(syncMessage))
+{
+    <div class="alert @(syncIsError ? "alert-danger" : "alert-success") mb-3">
+        @syncMessage
+        @if (lastSyncWasDemo)
+        {
+            <div class="small mt-1 opacity-75">Mode démo actif — sur l'autre PC, désactivez <code>Sync:DemoMode</code> pour Outlook réel.</div>
+        }
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(reviewError) && !showReviewModal)
+{
+    <div class="alert alert-danger mb-3">@reviewError</div>
+}
+
+@if (emails == null)
+{
+    <div class="alert alert-info">
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        Chargement des emails…
+    </div>
+}
+else if (!emails.Any())
+{
+    <div class="alert alert-warning">
+        Aucun email. Cliquez sur <strong>Synchroniser les emails</strong> pour importer l'exemple de démonstration.
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" @bind="SelectAll" />
+            <label class="form-check-label">Tout sélectionner</label>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-info btn-sm"
+                    @onclick="AnalyzeSelectedEmails"
+                    disabled="@(!emails.Any(e => e.IsSelected) || isAnalyzingBulk)">
+                @if (isAnalyzingBulk)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Analyse IA…</span>
+                }
+                else
+                {
+                    <span>🤖 Analyser IA (@SelectedCount sélectionné(s))</span>
+                }
+            </button>
+            <button class="btn btn-outline-danger btn-sm"
+                    @onclick="DeleteSelectedEmails"
+                    disabled="@(!emails.Any(e => e.IsSelected))">
+                Supprimer la sélection
+            </button>
+        </div>
+    </div>
+
+    <div class="list-group">
+        @foreach (var email in emails.OrderByDescending(e => e.ReceivedDate))
+        {
+            <div class="list-group-item list-group-item-action mb-2 shadow-sm rounded @(email.IsDemo ? "border-start border-warning border-3" : "")"
+                 style="cursor:pointer"
+                 @onclick="() => GoToDetails(email.Id)">
+
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex gap-3">
+                        <input type="checkbox"
+                               class="form-check-input mt-1"
+                               @bind="email.IsSelected"
+                               @onclick:stopPropagation="true" />
+
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <h6 class="mb-0 fw-semibold">@email.Subject</h6>
+                                @if (email.IsDemo)
+                                {
+                                    <span class="badge bg-warning text-dark">Démo</span>
+                                }
+                                @if (email.AiAnalyzed)
+                                {
+                                    <span class="badge bg-info">@email.AiCategory</span>
+                                }
+                            </div>
+                            <p class="mb-1 text-muted small">De : @email.From</p>
+                            <small class="text-muted">@email.ReceivedDate.ToString("dd/MM/yyyy HH:mm")</small>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline-danger btn-sm"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DeleteEmail(email.Id)">
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<AiTasksReviewModal Visible="@showReviewModal"
+                    Title="@CurrentReviewTitle"
+                    Analysis="@CurrentReviewAnalysis"
+                    CheckProjectApiUrl="api/emaillogs/check-project"
+                    BulkProgress="@BulkProgressLabel"
+                    ShowSkipButton="@HasNextReviewItem"
+                    IsBusy="@isConfirmingTasks"
+                    ErrorMessage="@reviewError"
+                    OnCancel="CancelReview"
+                    OnSkip="SkipCurrentReview"
+                    OnConfirm="ConfirmCurrentReview" />
+
+@if (!string.IsNullOrEmpty(bulkSuccessMessage))
+{
+    <div class="alert alert-success mt-3">@bulkSuccessMessage</div>
+}
+
+@code {
+    private List<EmailLog>? emails;
+    private bool selectAll;
+    private bool isSyncing;
+    private string? syncMessage;
+    private bool syncIsError;
+    private bool lastSyncWasDemo;
+
+    private bool isAnalyzingBulk;
+    private bool showReviewModal;
+    private bool isConfirmingTasks;
+    private string? reviewError;
+    private string? bulkSuccessMessage;
+    private List<BulkAnalyzeItem> bulkReviewItems = new();
+    private int bulkReviewIndex;
+
+    private int SelectedCount => emails?.Count(e => e.IsSelected) ?? 0;
+    private bool HasNextReviewItem => bulkReviewIndex < bulkReviewItems.Count - 1;
+    private string? BulkProgressLabel => bulkReviewItems.Count > 1
+        ? $"{bulkReviewIndex + 1} / {bulkReviewItems.Count}"
+        : null;
+    private string CurrentReviewTitle => bulkReviewItems.ElementAtOrDefault(bulkReviewIndex)?.Label ?? "Revue analyse IA";
+    private PmoAnalysisPreview? CurrentReviewAnalysis
+    {
+        get
+        {
+            var item = bulkReviewItems.ElementAtOrDefault(bulkReviewIndex);
+            return item?.Analysis;
+        }
+    }
+
+    private bool SelectAll
+    {
+        get => selectAll;
+        set
+        {
+            selectAll = value;
+            if (emails == null) return;
+            foreach (var email in emails)
+                email.IsSelected = selectAll;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmails();
+    }
+
+    private async Task LoadEmails()
+    {
+        emails = await Http.GetFromJsonAsync<List<EmailLog>>("api/emaillogs");
+    }
+
+    private async Task SyncEmails()
+    {
+        if (isSyncing) return;
+
+        isSyncing = true;
+        syncMessage = null;
+        syncIsError = false;
+        lastSyncWasDemo = false;
+
+        try
+        {
+            var response = await Http.PostAsync("api/sync/emails", null);
+            var body = await response.Content.ReadFromJsonAsync<SyncResponse>();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                syncIsError = true;
+                syncMessage = body?.Message ?? "Échec de la synchronisation.";
+            }
+            else
+            {
+                lastSyncWasDemo = body?.DemoMode == true;
+                syncMessage = body?.Message ?? "Synchronisation terminée.";
+            }
+
+            await LoadEmails();
+        }
+        catch (Exception ex)
+        {
+            syncIsError = true;
+            syncMessage = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+    }
+
+    private void GoToDetails(int id) => Nav.NavigateTo($"/emails/details/{id}");
+
+    private async Task DeleteEmail(int id)
+    {
+        var response = await Http.DeleteAsync($"api/emaillogs/{id}");
+        if (response.IsSuccessStatusCode && emails != null)
+        {
+            emails.RemoveAll(e => e.Id == id);
+            selectAll = emails.Count > 0 && emails.All(e => e.IsSelected);
+        }
+    }
+
+    private async Task DeleteSelectedEmails()
+    {
+        if (emails == null) return;
+
+        var selectedIds = emails.Where(e => e.IsSelected).Select(e => e.Id).ToList();
+        if (!selectedIds.Any()) return;
+
+        var response = await Http.PostAsJsonAsync("api/emaillogs/delete-multiple", selectedIds);
+        if (response.IsSuccessStatusCode)
+        {
+            emails.RemoveAll(e => e.IsSelected);
+            SelectAll = false;
+        }
+    }
+
+    private async Task AnalyzeSelectedEmails()
+    {
+        if (emails == null) return;
+
+        var selectedIds = emails.Where(e => e.IsSelected).Select(e => e.Id).ToList();
+        if (!selectedIds.Any()) return;
+
+        isAnalyzingBulk = true;
+        bulkSuccessMessage = null;
+        reviewError = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/emaillogs/analyze-bulk", new BulkIdsRequest { Ids = selectedIds });
+            if (!response.IsSuccessStatusCode)
+            {
+                reviewError = $"Analyse IA échouée : {response.ReasonPhrase}";
+                return;
+            }
+
+            var results = await response.Content.ReadFromJsonAsync<List<BulkAnalyzeItem>>() ?? new();
+            bulkReviewItems = results.Where(r => r.Analysis != null).ToList();
+
+            if (!bulkReviewItems.Any())
+            {
+                var firstError = results.FirstOrDefault(r => !string.IsNullOrEmpty(r.Error))?.Error;
+                reviewError = firstError ?? "Aucune analyse disponible pour la sélection.";
+                return;
+            }
+
+            bulkReviewIndex = 0;
+            showReviewModal = true;
+        }
+        catch (Exception ex)
+        {
+            reviewError = ex.Message;
+        }
+        finally
+        {
+            isAnalyzingBulk = false;
+        }
+    }
+
+    private void CancelReview()
+    {
+        showReviewModal = false;
+        bulkReviewItems.Clear();
+        bulkReviewIndex = 0;
+        reviewError = null;
+    }
+
+    private void SkipCurrentReview()
+    {
+        if (HasNextReviewItem)
+        {
+            bulkReviewIndex++;
+            reviewError = null;
+        }
+        else
+        {
+            CancelReview();
+        }
+    }
+
+    private async Task ConfirmCurrentReview(AiTasksConfirmPayload payload)
+    {
+        var current = bulkReviewItems.ElementAtOrDefault(bulkReviewIndex);
+        if (current == null) return;
+
+        isConfirmingTasks = true;
+        reviewError = null;
+
+        try
+        {
+            var request = new CreateProjectTasksRequest
+            {
+                ProjectName = payload.ProjectName,
+                Client = payload.Client,
+                Status = payload.Status,
+                Category = payload.Category,
+                Summary = payload.Summary,
+                Tasks = payload.Tasks.Select(t => new CreateTaskDto
+                {
+                    Title = t.Title,
+                    Deadline = DateTime.TryParse(t.Deadline, out var date) ? date : DateTime.UtcNow
+                }).ToList()
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/emaillogs/create-project-tasks/{current.Id}", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                reviewError = $"Échec création tâches : {response.ReasonPhrase}";
+                return;
+            }
+
+            var email = emails?.FirstOrDefault(e => e.Id == current.Id);
+            if (email != null)
+            {
+                email.AiAnalyzed = true;
+                email.AiCategory = payload.Category;
+            }
+
+            if (HasNextReviewItem)
+            {
+                bulkReviewIndex++;
+            }
+            else
+            {
+                showReviewModal = false;
+                bulkReviewItems.Clear();
+                bulkReviewIndex = 0;
+                bulkSuccessMessage = "Tâches créées et emails marqués comme analysés.";
+                SelectAll = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            reviewError = ex.Message;
+        }
+        finally
+        {
+            isConfirmingTasks = false;
+        }
+    }
+
+    private class CreateProjectTasksRequest
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public string Client { get; set; } = string.Empty;
+        public string Status { get; set; } = "OnTrack";
+        public string Category { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
+        public List<CreateTaskDto> Tasks { get; set; } = new();
+    }
+
+    private class CreateTaskDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public DateTime Deadline { get; set; }
+    }
+
+    private class EmailLog
+    {
+        public int Id { get; set; }
+        public string Subject { get; set; } = "";
+        public string? From { get; set; }
+        public DateTime ReceivedDate { get; set; }
+        public string? AiCategory { get; set; }
+        public bool AiAnalyzed { get; set; }
+        public bool IsSelected { get; set; }
+        public bool IsDemo => Subject.StartsWith("[DÉMO]", StringComparison.Ordinal);
+    }
+
+    private class SyncResponse
+    {
+        public string? Status { get; set; }
+        public string? Message { get; set; }
+        public bool DemoMode { get; set; }
+    }
+}

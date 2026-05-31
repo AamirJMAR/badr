@@ -1,0 +1,139 @@
+@page "/reports"
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<div class="container mt-4">
+
+    <h1 class="fw-bold">📊 Reports / PMO KPI</h1>
+    <p class="text-muted">
+        Overview of project task performance and progress.
+    </p>
+
+    @if (report == null)
+    {
+        <p>Loading reports...</p>
+    }
+    else
+    {
+        <!-- KPI CARDS -->
+        <div class="row g-4">
+
+            <div class="col-md-3">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h6>Total Tasks</h6>
+                        <h2 class="fw-bold">@report.TotalTasks</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-success">
+                    <div class="card-body text-center">
+                        <h6>Done</h6>
+                        <h2 class="fw-bold text-success">@report.DoneTasks</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-warning">
+                    <div class="card-body text-center">
+                        <h6>Open</h6>
+                        <h2 class="fw-bold text-warning">@report.OpenTasks</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-info">
+                    <div class="card-body text-center">
+                        <h6>In Progress</h6>
+                        <h2 class="fw-bold text-info">@report.InProgressTasks</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXTRA KPI -->
+        <div class="row g-4 mt-3">
+            <div class="col-md-6">
+                <div class="card shadow-sm border-danger">
+                    <div class="card-body text-center">
+                        <h6>Overdue Tasks</h6>
+                        <h2 class="fw-bold text-danger">@report.OverdueTasks</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm border-primary">
+                    <div class="card-body text-center">
+                        <h6>Completion Rate</h6>
+                        <h2 class="fw-bold">@report.CompletionRate %</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHARTS -->
+        <div class="row g-4 mt-4">
+            <div class="col-md-6">
+                
+<div class="card shadow-sm" style="height:350px;">
+    <div class="card-body text-center h-100 d-flex flex-column">
+        <h6 class="fw-bold">Tasks Distribution</h6>
+        <div class="flex-grow-1">
+            <canvas id="tasksPieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+            </div>
+
+            <div class="col-md-6">
+               <div class="card shadow-sm" style="height:350px;">
+    <div class="card-body text-center h-100 d-flex flex-column">
+        <h6 class="fw-bold">Tasks by Status</h6>
+        <div class="flex-grow-1 position-relative">
+            <canvas id="tasksBarChart"></canvas>
+        </div>
+    </div>
+</div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    private ReportDto? report;
+
+    protected override async Task OnInitializedAsync()
+    {
+        report = await Http.GetFromJsonAsync<ReportDto>("api/reports/tasks");
+
+        if (report != null)
+        {
+            // attendre que le DOM soit stable
+            await Task.Delay(200);
+
+            await JS.InvokeVoidAsync(
+                "renderTaskCharts",
+                report.OpenTasks,
+                report.InProgressTasks,
+                report.DoneTasks
+            );
+        }
+    }
+
+    private class ReportDto
+    {
+        public int TotalTasks { get; set; }
+        public int DoneTasks { get; set; }
+        public int OpenTasks { get; set; }
+        public int InProgressTasks { get; set; }
+        public int OverdueTasks { get; set; }
+        public int CompletionRate { get; set; }
+    }
+}

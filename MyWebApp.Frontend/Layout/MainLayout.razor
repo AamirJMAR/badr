@@ -1,0 +1,46 @@
+﻿@using MyWebApp.Frontend.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <!-- Top header -->
+        <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom"
+             style="background-color:white;">
+            <h5 class="mb-0 fw-semibold">
+                Capgemini Engineering – PMO Dashboard
+            </h5>
+
+            <div>
+                @if (AuthService.IsAuthenticated)
+                {
+                    <span class="me-3 text-muted">
+                        👤 @AuthService.CurrentUser
+                    </span>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="Logout">
+                        Logout
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Page content -->
+        <article class="content px-4 mt-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", true);
+    }
+}

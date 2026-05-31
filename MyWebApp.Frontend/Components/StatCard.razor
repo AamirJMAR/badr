@@ -1,0 +1,19 @@
+<div class="card shadow-sm border-0 h-100">
+    <div class="card-body">
+        <h6 class="text-uppercase text-muted">@Title</h6>
+
+        <h2 class="fw-bold @ValueClass">
+            @Value
+        </h2>
+
+        <small class="text-muted">@Description</small>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public string ValueClass { get; set; } = "";
+}
+``

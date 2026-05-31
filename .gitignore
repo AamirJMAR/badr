@@ -1,0 +1,25 @@
+# Build folders
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+
+# Debug / Release
+[Bb]in/
+[Oo]bj/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local secrets (never commit)
+**/appsettings.Local.json
+**/secrets.json

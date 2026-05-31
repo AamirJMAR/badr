@@ -1,0 +1,110 @@
+@page "/projects/{ProjectId:int}/overview"
+@inject HttpClient Http
+@using Microsoft.AspNetCore.Components
+
+<div class="container mt-4">
+
+    @if (overview == null || project == null)
+    {
+        <p>Loading project overview...</p>
+    }
+    else
+    {
+        <h1 class="fw-bold">
+            📊 @project.Name – Project Overview
+            <span class="badge @GetProjectBadgeClass(project.Status)">
+                @project.Status
+            </span>
+        </h1>
+
+        <p class="text-muted">Overall progress of this project</p>
+
+        <!-- KPI CARDS -->
+        <div class="row g-4 mt-3">
+            <div class="col-md-3">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h6>Total Tasks</h6>
+                        <h2 class="fw-bold">@overview.Total</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-success">
+                    <div class="card-body text-center">
+                        <h6>Done</h6>
+                        <h2 class="fw-bold text-success">@overview.Done</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-info">
+                    <div class="card-body text-center">
+                        <h6>In Progress</h6>
+                        <h2 class="fw-bold text-info">@overview.InProgress</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm border-warning">
+                    <div class="card-body text-center">
+                        <h6>Open</h6>
+                        <h2 class="fw-bold text-warning">@overview.Open</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMPLETION -->
+        <div class="card shadow-sm border-primary mt-4">
+            <div class="card-body text-center">
+                <h6>Completion Rate</h6>
+                <h2 class="fw-bold">@overview.CompletionRate %</h2>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+
+    [Parameter]
+    public int ProjectId { get; set; }
+
+    private ProjectDto? project;
+    private ProjectOverviewDto? overview;
+
+    protected override async Task OnInitializedAsync()
+    {
+        project = await Http.GetFromJsonAsync<ProjectDto>($"api/projects/{ProjectId}");
+        overview = await Http.GetFromJsonAsync<ProjectOverviewDto>(
+            $"api/reports/project/{ProjectId}");
+    }
+
+    private string GetProjectBadgeClass(string status) => status switch
+    {
+        "OnTrack" => "bg-success",
+        "AtRisk" => "bg-warning text-dark",
+        "Delayed" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private class ProjectDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Status { get; set; } = "";
+    }
+
+    private class ProjectOverviewDto
+    {
+        public int Total { get; set; }
+        public int Done { get; set; }
+        public int Open { get; set; }
+        public int InProgress { get; set; }
+        public int CompletionRate { get; set; }
+    }
+}

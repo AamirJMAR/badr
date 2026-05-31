@@ -1,0 +1,451 @@
+@page "/calendar"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="fw-bold mb-1">Calendrier</h1>
+        <p class="text-muted mb-0">
+            Événements Outlook importés par synchronisation (mode démo en local).
+        </p>
+    </div>
+    <button class="btn btn-primary"
+            @onclick="SyncCalendar"
+            disabled="@isSyncing">
+        @if (isSyncing)
+        {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            <span>Synchronisation…</span>
+        }
+        else
+        {
+            <span>📅 Synchroniser le calendrier</span>
+        }
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(syncMessage))
+{
+    <div class="alert @(syncIsError ? "alert-danger" : "alert-success") mb-3">
+        @syncMessage
+        @if (lastSyncWasDemo)
+        {
+            <div class="small mt-1 opacity-75">Mode démo actif — sur l'autre PC, désactivez <code>Sync:DemoMode</code> pour Outlook réel.</div>
+        }
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(reviewError) && !showReviewModal)
+{
+    <div class="alert alert-danger mb-3">@reviewError</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <div class="alert alert-danger">
+        <strong>Erreur :</strong> @loadError
+    </div>
+}
+else if (events == null)
+{
+    <div class="alert alert-info">
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        Chargement du calendrier…
+    </div>
+}
+else if (!events.Any())
+{
+    <div class="alert alert-warning">
+        Aucun événement à venir. Cliquez sur <strong>Synchroniser le calendrier</strong> pour importer l'exemple de démonstration.
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" @bind="SelectAll" />
+            <label class="form-check-label">Tout sélectionner</label>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-info btn-sm"
+                    @onclick="AnalyzeSelectedEvents"
+                    disabled="@(!events.Any(e => e.IsSelected) || isAnalyzingBulk)">
+                @if (isAnalyzingBulk)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Analyse IA…</span>
+                }
+                else
+                {
+                    <span>🤖 Analyser IA (@SelectedCount sélectionné(s))</span>
+                }
+            </button>
+            <button class="btn btn-outline-danger btn-sm"
+                    @onclick="DeleteSelectedEvents"
+                    disabled="@(!events.Any(e => e.IsSelected))">
+                Supprimer la sélection
+            </button>
+        </div>
+    </div>
+
+    <div class="list-group">
+        @foreach (var ev in events.OrderBy(e => e.StartTime))
+        {
+            <div class="list-group-item list-group-item-action mb-2 shadow-sm rounded @(ev.IsDemo ? "border-start border-warning border-3" : "")"
+                 style="cursor:pointer"
+                 @onclick="() => GoToDetails(ev.Id)">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-3 align-items-start">
+                        <input type="checkbox"
+                               class="form-check-input mt-1"
+                               @bind="ev.IsSelected"
+                               @onclick:stopPropagation="true" />
+
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <h5 class="mb-0 fw-semibold">@ev.Subject</h5>
+                                @if (ev.IsDemo)
+                                {
+                                    <span class="badge bg-warning text-dark">Démo</span>
+                                }
+                                @if (ev.AiAnalyzed)
+                                {
+                                    <span class="badge bg-info">@ev.AiCategory</span>
+                                }
+                            </div>
+                            <p class="mb-0 text-muted small">
+                                @FormatDate(ev.StartTime) → @FormatDate(ev.EndTime)
+                            </p>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline-danger btn-sm"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DeleteEvent(ev.Id)">
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<AiTasksReviewModal Visible="@showReviewModal"
+                    Title="@CurrentReviewTitle"
+                    Analysis="@CurrentReviewAnalysis"
+                    CheckProjectApiUrl="api/calendar/check-project"
+                    BulkProgress="@BulkProgressLabel"
+                    ShowSkipButton="@HasNextReviewItem"
+                    IsBusy="@isConfirmingTasks"
+                    ErrorMessage="@reviewError"
+                    OnCancel="CancelReview"
+                    OnSkip="SkipCurrentReview"
+                    OnConfirm="ConfirmCurrentReview" />
+
+@if (!string.IsNullOrEmpty(bulkSuccessMessage))
+{
+    <div class="alert alert-success mt-3">@bulkSuccessMessage</div>
+}
+
+@code {
+    private List<CalendarEvent>? events;
+    private string? loadError;
+    private bool isSyncing;
+    private string? syncMessage;
+    private bool syncIsError;
+    private bool lastSyncWasDemo;
+    private bool selectAll;
+
+    private bool isAnalyzingBulk;
+    private bool showReviewModal;
+    private bool isConfirmingTasks;
+    private string? reviewError;
+    private string? bulkSuccessMessage;
+    private List<BulkAnalyzeItem> bulkReviewItems = new();
+    private int bulkReviewIndex;
+
+    private int SelectedCount => events?.Count(e => e.IsSelected) ?? 0;
+    private bool HasNextReviewItem => bulkReviewIndex < bulkReviewItems.Count - 1;
+    private string? BulkProgressLabel => bulkReviewItems.Count > 1
+        ? $"{bulkReviewIndex + 1} / {bulkReviewItems.Count}"
+        : null;
+    private string CurrentReviewTitle => bulkReviewItems.ElementAtOrDefault(bulkReviewIndex)?.Label ?? "Revue analyse IA";
+    private PmoAnalysisPreview? CurrentReviewAnalysis
+    {
+        get
+        {
+            var item = bulkReviewItems.ElementAtOrDefault(bulkReviewIndex);
+            return item?.Analysis;
+        }
+    }
+
+    private bool SelectAll
+    {
+        get => selectAll;
+        set
+        {
+            selectAll = value;
+            if (events == null) return;
+            foreach (var ev in events)
+                ev.IsSelected = selectAll;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEvents();
+    }
+
+    private async Task LoadEvents()
+    {
+        loadError = null;
+
+        try
+        {
+            var response = await Http.GetAsync("api/calendar");
+            if (!response.IsSuccessStatusCode)
+            {
+                loadError = $"Impossible de charger : {response.StatusCode}";
+                events = new List<CalendarEvent>();
+                return;
+            }
+
+            events = await response.Content.ReadFromJsonAsync<List<CalendarEvent>>();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+            events = new List<CalendarEvent>();
+        }
+    }
+
+    private async Task SyncCalendar()
+    {
+        if (isSyncing) return;
+
+        isSyncing = true;
+        syncMessage = null;
+        syncIsError = false;
+        lastSyncWasDemo = false;
+
+        try
+        {
+            var response = await Http.PostAsync("api/sync/calendar", null);
+            var body = await response.Content.ReadFromJsonAsync<SyncResponse>();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                syncIsError = true;
+                syncMessage = body?.Message ?? "Échec de la synchronisation.";
+            }
+            else
+            {
+                lastSyncWasDemo = body?.DemoMode == true;
+                syncMessage = body?.Message ?? "Synchronisation terminée.";
+            }
+
+            await LoadEvents();
+        }
+        catch (Exception ex)
+        {
+            syncIsError = true;
+            syncMessage = $"Erreur : {ex.Message}";
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+    }
+
+    private async Task DeleteEvent(int id)
+    {
+        var response = await Http.DeleteAsync($"api/calendar/{id}");
+        if (response.IsSuccessStatusCode && events != null)
+        {
+            var ev = events.FirstOrDefault(e => e.Id == id);
+            if (ev != null)
+                events.Remove(ev);
+        }
+    }
+
+    private async Task DeleteSelectedEvents()
+    {
+        if (events == null) return;
+
+        var selectedIds = events.Where(e => e.IsSelected).Select(e => e.Id).ToList();
+        if (!selectedIds.Any()) return;
+
+        var response = await Http.PostAsJsonAsync("api/calendar/delete-multiple", selectedIds);
+        if (response.IsSuccessStatusCode)
+        {
+            events.RemoveAll(e => e.IsSelected);
+            SelectAll = false;
+        }
+    }
+
+    private async Task AnalyzeSelectedEvents()
+    {
+        if (events == null) return;
+
+        var selectedIds = events.Where(e => e.IsSelected).Select(e => e.Id).ToList();
+        if (!selectedIds.Any()) return;
+
+        isAnalyzingBulk = true;
+        bulkSuccessMessage = null;
+        reviewError = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/calendar/analyze-bulk", new BulkIdsRequest { Ids = selectedIds });
+            if (!response.IsSuccessStatusCode)
+            {
+                reviewError = $"Analyse IA échouée : {response.ReasonPhrase}";
+                return;
+            }
+
+            var results = await response.Content.ReadFromJsonAsync<List<BulkAnalyzeItem>>() ?? new();
+            bulkReviewItems = results.Where(r => r.Analysis != null).ToList();
+
+            if (!bulkReviewItems.Any())
+            {
+                var firstError = results.FirstOrDefault(r => !string.IsNullOrEmpty(r.Error))?.Error;
+                reviewError = firstError ?? "Aucune analyse disponible pour la sélection.";
+                return;
+            }
+
+            bulkReviewIndex = 0;
+            showReviewModal = true;
+        }
+        catch (Exception ex)
+        {
+            reviewError = ex.Message;
+        }
+        finally
+        {
+            isAnalyzingBulk = false;
+        }
+    }
+
+    private void CancelReview()
+    {
+        showReviewModal = false;
+        bulkReviewItems.Clear();
+        bulkReviewIndex = 0;
+        reviewError = null;
+    }
+
+    private void SkipCurrentReview()
+    {
+        if (HasNextReviewItem)
+        {
+            bulkReviewIndex++;
+            reviewError = null;
+        }
+        else
+        {
+            CancelReview();
+        }
+    }
+
+    private async Task ConfirmCurrentReview(AiTasksConfirmPayload payload)
+    {
+        var current = bulkReviewItems.ElementAtOrDefault(bulkReviewIndex);
+        if (current == null) return;
+
+        isConfirmingTasks = true;
+        reviewError = null;
+
+        try
+        {
+            var request = new CreateProjectTasksRequest
+            {
+                ProjectName = payload.ProjectName,
+                Client = payload.Client,
+                Status = payload.Status,
+                Category = payload.Category,
+                Summary = payload.Summary,
+                Tasks = payload.Tasks.Select(t => new CreateTaskDto
+                {
+                    Title = t.Title,
+                    Deadline = DateTime.TryParse(t.Deadline, out var date) ? date : DateTime.UtcNow
+                }).ToList()
+            };
+
+            var response = await Http.PostAsJsonAsync($"api/calendar/create-project-tasks/{current.Id}", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                reviewError = $"Échec création tâches : {response.ReasonPhrase}";
+                return;
+            }
+
+            var ev = events?.FirstOrDefault(e => e.Id == current.Id);
+            if (ev != null)
+            {
+                ev.AiAnalyzed = true;
+                ev.AiCategory = payload.Category;
+            }
+
+            if (HasNextReviewItem)
+            {
+                bulkReviewIndex++;
+            }
+            else
+            {
+                showReviewModal = false;
+                bulkReviewItems.Clear();
+                bulkReviewIndex = 0;
+                bulkSuccessMessage = "Tâches créées et événements marqués comme analysés.";
+                SelectAll = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            reviewError = ex.Message;
+        }
+        finally
+        {
+            isConfirmingTasks = false;
+        }
+    }
+
+    private void GoToDetails(int id) => Navigation.NavigateTo($"/calendar/details/{id}");
+
+    private static string FormatDate(DateTime? date) =>
+        date?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
+
+    private class CalendarEvent
+    {
+        public int Id { get; set; }
+        public string Subject { get; set; } = "";
+        public DateTime? StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public bool AiAnalyzed { get; set; }
+        public string? AiCategory { get; set; }
+        public bool IsSelected { get; set; }
+        public bool IsDemo => Subject.StartsWith("[DÉMO]", StringComparison.Ordinal);
+    }
+
+    private class CreateProjectTasksRequest
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public string Client { get; set; } = string.Empty;
+        public string Status { get; set; } = "OnTrack";
+        public string Category { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
+        public List<CreateTaskDto> Tasks { get; set; } = new();
+    }
+
+    private class CreateTaskDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public DateTime Deadline { get; set; }
+    }
+
+    private class SyncResponse
+    {
+        public string? Status { get; set; }
+        public string? Message { get; set; }
+        public bool DemoMode { get; set; }
+    }
+}
