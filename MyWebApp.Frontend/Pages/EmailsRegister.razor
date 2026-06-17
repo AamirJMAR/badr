@@ -2,27 +2,26 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-    <div>
-        <h1 class="fw-bold mb-1">Emails</h1>
-        <p class="text-muted mb-0">
-            Import depuis Outlook via synchronisation (Power Automate en production, mode démo en local).
-        </p>
-    </div>
-    <button class="btn btn-primary"
-            @onclick="SyncEmails"
-            disabled="@isSyncing">
-        @if (isSyncing)
-        {
-            <span class="spinner-border spinner-border-sm me-2"></span>
-            <span>Synchronisation…</span>
-        }
-        else
-        {
-            <span>📧 Synchroniser les emails</span>
-        }
-    </button>
-</div>
+<div class="pmo-page">
+    <PmoPageHeader Icon="📧"
+                   Title="Emails"
+                   Subtitle="Import from Outlook via sync (Power Automate in production, demo mode locally).">
+        <HeaderActions>
+            <button class="btn btn-primary"
+                    @onclick="SyncEmails"
+                    disabled="@isSyncing">
+                @if (isSyncing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Syncing...</span>
+                }
+                else
+                {
+                    <span>📧 Sync emails</span>
+                }
+            </button>
+        </HeaderActions>
+    </PmoPageHeader>
 
 @if (!string.IsNullOrEmpty(syncMessage))
 {
@@ -30,7 +29,7 @@
         @syncMessage
         @if (lastSyncWasDemo)
         {
-            <div class="small mt-1 opacity-75">Mode démo actif — sur l'autre PC, désactivez <code>Sync:DemoMode</code> pour Outlook réel.</div>
+            <div class="small mt-1 opacity-75">Demo mode active — disable <code>Sync:DemoMode</code> on the server for real Outlook sync.</div>
         }
     </div>
 }
@@ -42,50 +41,71 @@
 
 @if (emails == null)
 {
-    <div class="alert alert-info">
-        <span class="spinner-border spinner-border-sm me-2"></span>
-        Chargement des emails…
+    <div class="card shadow-sm border-0 loading-card content-card">
+        <div class="card-body text-center py-5">
+            <div class="loading-icon mb-3">📧</div>
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 mb-0 text-muted">Loading emails...</p>
+        </div>
     </div>
 }
 else if (!emails.Any())
 {
-    <div class="alert alert-warning">
-        Aucun email. Cliquez sur <strong>Synchroniser les emails</strong> pour importer l'exemple de démonstration.
+    <div class="card shadow-sm border-0 empty-card content-card">
+        <div class="card-body py-5">
+            <div class="empty-state">
+                <div class="empty-state-icon">📧</div>
+                <div class="empty-state-content">
+                    <h5 class="empty-state-title mb-2">No emails yet</h5>
+                    <p class="empty-state-text mb-3">
+                        Click <strong>Sync emails</strong> to import the demo example.
+                    </p>
+                    <button class="btn btn-primary" @onclick="SyncEmails" disabled="@isSyncing">
+                        📧 Sync emails
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 }
 else
 {
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" @bind="SelectAll" />
-            <label class="form-check-label">Tout sélectionner</label>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-info btn-sm"
-                    @onclick="AnalyzeSelectedEmails"
-                    disabled="@(!emails.Any(e => e.IsSelected) || isAnalyzingBulk)">
-                @if (isAnalyzingBulk)
-                {
-                    <span class="spinner-border spinner-border-sm me-2"></span>
-                    <span>Analyse IA…</span>
-                }
-                else
-                {
-                    <span>🤖 Analyser IA (@SelectedCount sélectionné(s))</span>
-                }
-            </button>
-            <button class="btn btn-outline-danger btn-sm"
-                    @onclick="DeleteSelectedEmails"
-                    disabled="@(!emails.Any(e => e.IsSelected))">
-                Supprimer la sélection
-            </button>
-        </div>
-    </div>
+    <div class="card shadow-sm border-0 content-card register-card">
+        <div class="card-body p-0">
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" @bind="SelectAll" />
+                        <label class="form-check-label">Select all</label>
+                    </div>
+                    <button class="btn btn-info btn-sm"
+                            @onclick="AnalyzeSelectedEmails"
+                            disabled="@(!emails.Any(e => e.IsSelected) || isAnalyzingBulk)">
+                        @if (isAnalyzingBulk)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>AI analysis...</span>
+                        }
+                        else
+                        {
+                            <span>🤖 Analyze AI (@SelectedCount selected)</span>
+                        }
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm"
+                            @onclick="DeleteSelectedEmails"
+                            disabled="@(!emails.Any(e => e.IsSelected))">
+                        Delete selected
+                    </button>
+                </div>
+                <div class="toolbar-right">
+                    <span class="selection-counter">@SelectedCount selected</span>
+                </div>
+            </div>
 
-    <div class="list-group">
+            <div class="p-3">
         @foreach (var email in emails.OrderByDescending(e => e.ReceivedDate))
         {
-            <div class="list-group-item list-group-item-action mb-2 shadow-sm rounded @(email.IsDemo ? "border-start border-warning border-3" : "")"
+            <div class="list-group-item list-group-item-action list-item-card @(email.IsDemo ? "border-start border-warning border-3" : "")"
                  style="cursor:pointer"
                  @onclick="() => GoToDetails(email.Id)">
 
@@ -101,14 +121,14 @@ else
                                 <h6 class="mb-0 fw-semibold">@email.Subject</h6>
                                 @if (email.IsDemo)
                                 {
-                                    <span class="badge bg-warning text-dark">Démo</span>
+                                    <span class="badge bg-warning text-dark">Demo</span>
                                 }
                                 @if (email.AiAnalyzed)
                                 {
                                     <span class="badge bg-info">@email.AiCategory</span>
                                 }
                             </div>
-                            <p class="mb-1 text-muted small">De : @email.From</p>
+                            <p class="mb-1 text-muted small">From: @email.From</p>
                             <small class="text-muted">@email.ReceivedDate.ToString("dd/MM/yyyy HH:mm")</small>
                         </div>
                     </div>
@@ -116,18 +136,19 @@ else
                     <button class="btn btn-outline-danger btn-sm"
                             @onclick:stopPropagation="true"
                             @onclick="() => DeleteEmail(email.Id)">
-                        Supprimer
+                        Delete
                     </button>
                 </div>
             </div>
         }
+            </div>
+        </div>
     </div>
 }
 
 <AiTasksReviewModal Visible="@showReviewModal"
                     Title="@CurrentReviewTitle"
                     Analysis="@CurrentReviewAnalysis"
-                    CheckProjectApiUrl="api/emaillogs/check-project"
                     BulkProgress="@BulkProgressLabel"
                     ShowSkipButton="@HasNextReviewItem"
                     IsBusy="@isConfirmingTasks"
@@ -140,6 +161,8 @@ else
 {
     <div class="alert alert-success mt-3">@bulkSuccessMessage</div>
 }
+
+</div>
 
 @code {
     private List<EmailLog>? emails;
@@ -162,7 +185,7 @@ else
     private string? BulkProgressLabel => bulkReviewItems.Count > 1
         ? $"{bulkReviewIndex + 1} / {bulkReviewItems.Count}"
         : null;
-    private string CurrentReviewTitle => bulkReviewItems.ElementAtOrDefault(bulkReviewIndex)?.Label ?? "Revue analyse IA";
+    private string CurrentReviewTitle => bulkReviewItems.ElementAtOrDefault(bulkReviewIndex)?.Label ?? "AI analysis review";
     private PmoAnalysisPreview? CurrentReviewAnalysis
     {
         get
@@ -211,12 +234,12 @@ else
             if (!response.IsSuccessStatusCode)
             {
                 syncIsError = true;
-                syncMessage = body?.Message ?? "Échec de la synchronisation.";
+                syncMessage = body?.Message ?? "Sync failed.";
             }
             else
             {
                 lastSyncWasDemo = body?.DemoMode == true;
-                syncMessage = body?.Message ?? "Synchronisation terminée.";
+                syncMessage = body?.Message ?? "Sync completed.";
             }
 
             await LoadEmails();
@@ -275,7 +298,7 @@ else
             var response = await Http.PostAsJsonAsync("api/emaillogs/analyze-bulk", new BulkIdsRequest { Ids = selectedIds });
             if (!response.IsSuccessStatusCode)
             {
-                reviewError = $"Analyse IA échouée : {response.ReasonPhrase}";
+                reviewError = $"AI analysis failed: {response.ReasonPhrase}";
                 return;
             }
 
@@ -285,7 +308,7 @@ else
             if (!bulkReviewItems.Any())
             {
                 var firstError = results.FirstOrDefault(r => !string.IsNullOrEmpty(r.Error))?.Error;
-                reviewError = firstError ?? "Aucune analyse disponible pour la sélection.";
+                reviewError = firstError ?? "No analysis available for the selection.";
                 return;
             }
 
@@ -335,7 +358,7 @@ else
         {
             var request = new CreateProjectTasksRequest
             {
-                ProjectName = payload.ProjectName,
+                CategoryName = payload.CategoryName,
                 Client = payload.Client,
                 Status = payload.Status,
                 Category = payload.Category,
@@ -343,14 +366,14 @@ else
                 Tasks = payload.Tasks.Select(t => new CreateTaskDto
                 {
                     Title = t.Title,
-                    Deadline = DateTime.TryParse(t.Deadline, out var date) ? date : DateTime.UtcNow
+                    Deadline = t.Deadline
                 }).ToList()
             };
 
             var response = await Http.PostAsJsonAsync($"api/emaillogs/create-project-tasks/{current.Id}", request);
             if (!response.IsSuccessStatusCode)
             {
-                reviewError = $"Échec création tâches : {response.ReasonPhrase}";
+                reviewError = $"Failed to create tasks: {response.ReasonPhrase}";
                 return;
             }
 
@@ -370,7 +393,7 @@ else
                 showReviewModal = false;
                 bulkReviewItems.Clear();
                 bulkReviewIndex = 0;
-                bulkSuccessMessage = "Tâches créées et emails marqués comme analysés.";
+                bulkSuccessMessage = "Tasks created and emails marked as analyzed.";
                 SelectAll = false;
             }
         }
@@ -386,7 +409,7 @@ else
 
     private class CreateProjectTasksRequest
     {
-        public string ProjectName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string Client { get; set; } = string.Empty;
         public string Status { get; set; } = "OnTrack";
         public string Category { get; set; } = string.Empty;

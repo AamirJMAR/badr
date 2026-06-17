@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyWebApp.Constants;
 using MyWebApp.Data;
+using MyWebApp.Helpers;
 using MyWebApp.Models;
 using MyWebApp.Services;
 using System.Globalization;
@@ -14,12 +16,18 @@ namespace MyWebApp.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly PmoAnalysisAiService _pmoAi;
+        private readonly CategorySeedService _categorySeed;
         private readonly ILogger<CalendarController> _logger;
 
-        public CalendarController(ApplicationDbContext context, PmoAnalysisAiService pmoAi, ILogger<CalendarController> logger)
+        public CalendarController(
+            ApplicationDbContext context,
+            PmoAnalysisAiService pmoAi,
+            CategorySeedService categorySeed,
+            ILogger<CalendarController> logger)
         {
             _context = context;
             _pmoAi = pmoAi;
+            _categorySeed = categorySeed;
             _logger = logger;
         }
 
@@ -171,9 +179,10 @@ namespace MyWebApp.Controllers
         }
 
         [HttpPost("check-project")]
-        public IActionResult CheckProject([FromBody] string projectName)
+        public IActionResult CheckProject([FromBody] string categoryName)
         {
-            var exists = _context.Projects.Any(p => p.Name == projectName);
+            var name = CategoryConstants.ResolveName(categoryName);
+            var exists = _context.Projects.Any(p => p.Name == name);
             return Ok(new { Exists = exists });
         }
 
@@ -184,27 +193,23 @@ namespace MyWebApp.Controllers
             if (ev == null)
                 return NotFound("Event not found");
 
-            var projectName = string.IsNullOrWhiteSpace(request.ProjectName)
-                ? ev.Subject
-                : request.ProjectName;
+            var categoryName = CategoryConstants.ResolveName(
+                !string.IsNullOrWhiteSpace(request.CategoryName)
+                    ? request.CategoryName
+                    : request.ProjectName);
 
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Name == projectName);
-            if (project == null)
-            {
-                project = new Project
-                {
-                    Name = projectName,
-                    Deadline = request.Tasks.Any() ? request.Tasks.Min(t => t.Deadline) : DateTime.Today,
-                    Status = string.IsNullOrWhiteSpace(request.Status) ? "Open" : request.Status
-                };
-                _context.Projects.Add(project);
-                await _context.SaveChangesAsync();
-            }
-            else if (!string.IsNullOrWhiteSpace(request.Status) && project.Status != request.Status)
+            if (!CategoryConstants.IsValid(categoryName))
+                return BadRequest($"Category must be one of: {string.Join(", ", CategoryConstants.FixedCategories)}");
+
+            var project = await _categorySeed.ResolveCategoryAsync(categoryName);
+
+            if (!string.IsNullOrWhiteSpace(request.Client))
+                project.Client = request.Client;
+
+            if (!string.IsNullOrWhiteSpace(request.Status) && project.Status != request.Status)
             {
                 project.Status = request.Status;
                 _context.Projects.Update(project);
-                await _context.SaveChangesAsync();
             }
 
             foreach (var task in request.Tasks)
@@ -221,10 +226,10 @@ namespace MyWebApp.Controllers
             var recommendationTasks = request.Tasks.Select(t => new PmoAnalysisTaskDto
             {
                 Title = t.Title,
-                Deadline = t.Deadline.ToString("yyyy-MM-dd")
+                Deadline = t.Deadline
             }).ToList();
 
-            ev.AiProjectName = projectName;
+            ev.AiProjectName = categoryName;
             ev.AiClient = request.Client;
             ev.AiStatus = request.Status;
             ev.AiCategory = request.Category;
@@ -293,6 +298,7 @@ namespace MyWebApp.Controllers
             new()
             {
                 ProjectName = parsed.ProjectName,
+                CategoryName = CategoryConstants.ResolveName(parsed.ProjectName),
                 Client = parsed.Client,
                 Status = parsed.Status,
                 Category = parsed.Category,
@@ -300,13 +306,14 @@ namespace MyWebApp.Controllers
                 Tasks = parsed.Tasks.Select(t => new PmoAnalysisTaskDto
                 {
                     Title = t.Title,
-                    Deadline = t.Deadline
+                    Deadline = DeadlineHelper.ParseDeadline(t.Deadline)
                 }).ToList()
             };
 
         public class CreateProjectTasksRequest
         {
             public string ProjectName { get; set; } = string.Empty;
+            public string CategoryName { get; set; } = string.Empty;
             public string Client { get; set; } = string.Empty;
             public string Status { get; set; } = "OnTrack";
             public string Category { get; set; } = string.Empty;

@@ -1,0 +1,23 @@
+/* Login — base styles: wwwroot/css/pmo-page-shared.css */
+
+.pmo-login-page {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: linear-gradient(180deg, #f6f9ff 0%, #ffffff 45%);
+}
+
+.pmo-login-card {
+    width: 100%;
+    max-width: 420px;
+    border-radius: 24px;
+    border: 1px solid #e9eef5;
+    box-shadow: 0 20px 50px rgba(37, 99, 235, 0.12);
+    overflow: hidden;
+}
+
+.pmo-login-card .card-body {
+    padding: 2rem;
+}

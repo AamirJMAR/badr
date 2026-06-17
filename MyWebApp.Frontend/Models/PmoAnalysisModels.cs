@@ -3,6 +3,7 @@ namespace MyWebApp.Frontend.Models
     public class PmoAnalysisPreview
     {
         public string ProjectName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string Client { get; set; } = string.Empty;
         public string Status { get; set; } = "OnTrack";
         public string Category { get; set; } = string.Empty;
@@ -13,12 +14,12 @@ namespace MyWebApp.Frontend.Models
     public class PmoAnalysisTaskRow
     {
         public string Title { get; set; } = string.Empty;
-        public string Deadline { get; set; } = "TBD";
+        public DateTime Deadline { get; set; } = DateTime.Today.AddDays(7);
     }
 
     public class AiTasksConfirmPayload
     {
-        public string ProjectName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string Client { get; set; } = string.Empty;
         public string Status { get; set; } = "OnTrack";
         public string Category { get; set; } = string.Empty;

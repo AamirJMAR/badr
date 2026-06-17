@@ -22,6 +22,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddSingleton<GenerativeEngineChatService>();
 builder.Services.AddScoped<DemoDataService>();
+builder.Services.AddScoped<CategorySeedService>();
 builder.Services.AddScoped<PmoAnalysisAiService>();
 
 // EF Core + SQLite
@@ -88,6 +89,9 @@ using (var scope = app.Services.CreateScope())
     {
         // If this fails, let the app continue so the developer can inspect logs.
     }
+
+    var categorySeed = scope.ServiceProvider.GetRequiredService<CategorySeedService>();
+    await categorySeed.SeedFixedCategoriesAsync();
 
     if (scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue<bool>("Sync:DemoMode"))
     {

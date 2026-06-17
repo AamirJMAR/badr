@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyWebApp.Constants;
 using MyWebApp.Data;
 using MyWebApp.Models;
 using MyWebApp.Services;
@@ -41,7 +42,12 @@ namespace MyWebApp.Controllers
         public async Task<IActionResult> GetProjects()
         {
             var today = DateTime.Today;
-            var projects = await _context.Projects.AsNoTracking().ToListAsync();
+            var fixedNames = CategoryConstants.FixedCategories.ToHashSet(StringComparer.Ordinal);
+
+            var projects = await _context.Projects
+                .AsNoTracking()
+                .Where(p => fixedNames.Contains(p.Name))
+                .ToListAsync();
 
             var taskCounts = await _context.Tasks
                 .Where(t => t.ProjectId != null)
@@ -49,52 +55,43 @@ namespace MyWebApp.Controllers
                 .Select(g => new { ProjectId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(g => g.ProjectId, g => g.Count);
 
-            var result = projects
-                .Select(p => new ProjectListItemDto
+            var result = CategoryConstants.FixedCategories
+                .Select(name =>
                 {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Client = p.Client,
-                    Deadline = p.Deadline,
-                    Status = ProjectStatusHelper.FromDeadline(p.Deadline, today),
-                    TaskCount = taskCounts.GetValueOrDefault(p.Id)
+                    var p = projects.FirstOrDefault(x => x.Name == name);
+                    if (p == null)
+                        return null;
+
+                    return new ProjectListItemDto
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Client = p.Client,
+                        Deadline = p.Deadline,
+                        Status = ProjectStatusHelper.FromDeadline(p.Deadline, today),
+                        TaskCount = taskCounts.GetValueOrDefault(p.Id)
+                    };
                 })
-                .OrderBy(p => p.Deadline)
+                .Where(p => p != null)
+                .Cast<ProjectListItemDto>()
                 .ToList();
 
             return Ok(result);
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddProject(Project project)
+        public IActionResult AddProject([FromBody] Project project)
         {
-            project.Status = ProjectStatusHelper.FromDeadline(project.Deadline);
-            _context.Projects.Add(project);
-            await _context.SaveChangesAsync();
+            if (!CategoryConstants.IsValid(project.Name))
+                return BadRequest($"Category must be one of: {string.Join(", ", CategoryConstants.FixedCategories)}");
 
-            var taskCount = await _context.Tasks.CountAsync(t => t.ProjectId == project.Id);
-
-            return Ok(new ProjectListItemDto
-            {
-                Id = project.Id,
-                Name = project.Name,
-                Client = project.Client,
-                Deadline = project.Deadline,
-                Status = project.Status,
-                TaskCount = taskCount
-            });
+            return BadRequest("Categories are fixed and cannot be created manually.");
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProject(int id)
+        public IActionResult DeleteProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
-            if (project == null)
-                return NotFound();
-
-            _context.Projects.Remove(project);
-            await _context.SaveChangesAsync();
-            return Ok();
+            return BadRequest("Categories are fixed and cannot be deleted.");
         }
     }
 }

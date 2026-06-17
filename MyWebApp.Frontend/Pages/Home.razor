@@ -11,13 +11,13 @@
 @inject DashboardService DashboardService
 @inject HttpClient Http
 
-<div class="container-fluid mt-4 dashboard-page">
+<div class="container-fluid mt-4 dashboard-page pmo-page">
 
     @if (isLoading)
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
-            <p class="text-muted mt-2">Chargement du tableau de bord…</p>
+            <p class="text-muted mt-2">Loading dashboard...</p>
         </div>
     }
     else
@@ -25,12 +25,12 @@
         <!-- En-tête -->
         <div class="dashboard-hero mb-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
             <div>
-                <h1 class="fw-bold mb-1 h2">Tableau de bord</h1>
+                <h1 class="fw-bold mb-1 h2">Dashboard</h1>
                 <p class="mb-0 text-white-50">
-                    Vue d'ensemble claire — @DateTime.Now.ToString("dddd d MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("fr-FR"))
+                    Clear overview — @DateTime.Now.ToString("dddd, MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture)
                 </p>
                 <span class="badge bg-light text-dark mt-2">
-                    Système : @dashboard.BackendStatus · @dashboard.Database
+                    System: @dashboard.BackendStatus · @dashboard.Database
                 </span>
             </div>
             <div class="d-flex flex-wrap gap-2">
@@ -49,45 +49,45 @@
         <!-- KPI -->
         <div class="row g-3 mb-4">
             <div class="col-sm-6 col-xl-3">
-                <div class="card kpi-card">
+                <div class="card kpi-card border-0">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="kpi-icon bg-primary bg-opacity-10 text-primary">📂</div>
                         <div>
                             <div class="kpi-value text-primary">@dashboard.TotalProjects</div>
-                            <div class="text-muted small">Catégories / projets</div>
+                            <div class="text-muted small">Categories</div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-sm-6 col-xl-3">
-                <div class="card kpi-card">
+                <div class="card kpi-card border-0">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="kpi-icon bg-secondary bg-opacity-10 text-secondary">✅</div>
                         <div>
                             <div class="kpi-value">@dashboard.OpenTasks</div>
-                            <div class="text-muted small">Tâches en cours</div>
+                            <div class="text-muted small">Open tasks</div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-sm-6 col-xl-3">
-                <div class="card kpi-card">
+                <div class="card kpi-card border-0">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="kpi-icon bg-warning bg-opacity-25 text-warning">⏰</div>
                         <div>
                             <div class="kpi-value text-warning">@dashboard.UrgentTasks</div>
-                            <div class="text-muted small">Échéance ≤ 7 jours</div>
+                            <div class="text-muted small">Due within 7 days</div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-sm-6 col-xl-3">
-                <div class="card kpi-card">
+                <div class="card kpi-card border-0">
                     <div class="card-body d-flex align-items-center gap-3">
                         <div class="kpi-icon bg-danger bg-opacity-10 text-danger">⚠️</div>
                         <div>
                             <div class="kpi-value text-danger">@dashboard.HighRiskCount</div>
-                            <div class="text-muted small">Catégories à risque</div>
+                            <div class="text-muted small">At-risk categories</div>
                         </div>
                     </div>
                 </div>
@@ -96,32 +96,32 @@
 
         <!-- Accès rapide -->
         <div class="mb-4">
-            <h5 class="fw-semibold mb-2">Accès rapide</h5>
+            <h5 class="fw-semibold mb-2">Quick access</h5>
             <div class="d-flex flex-wrap gap-2">
-                <a href="/categories" class="btn btn-outline-primary quick-link">Catégories</a>
-                <a href="/tasks" class="btn btn-outline-primary quick-link">Tâches</a>
-                <a href="/deliverables" class="btn btn-outline-secondary quick-link">Chargement fichiers</a>
-                <a href="/deliverables-register" class="btn btn-outline-secondary quick-link">Fichiers enregistrés</a>
+                <a href="/categories" class="btn btn-outline-primary quick-link">Categories</a>
+                <a href="/tasks" class="btn btn-outline-primary quick-link">Tasks</a>
+                <a href="/deliverables" class="btn btn-outline-secondary quick-link">File upload</a>
+                <a href="/deliverables-register" class="btn btn-outline-secondary quick-link">Registered files</a>
                 <a href="/emails" class="btn btn-outline-secondary quick-link">Emails</a>
-                <a href="/calendar" class="btn btn-outline-secondary quick-link">Calendrier</a>
+                <a href="/calendar" class="btn btn-outline-secondary quick-link">Calendar</a>
             </div>
         </div>
 
         <!-- Contenu principal -->
         <div class="row g-4">
             <div class="col-lg-7">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 content-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="fw-semibold mb-0">Prochaines échéances</h5>
-                            <a href="/tasks" class="small link-primary">Voir tout →</a>
+                            <h5 class="fw-semibold mb-0">Upcoming deadlines</h5>
+                            <a href="/tasks" class="small link-primary">View all →</a>
                         </div>
 
                         @if (upcomingTasks.Count == 0)
                         {
                             <div class="empty-state">
                                 <span class="fs-4">🎉</span>
-                                <p class="mb-0 mt-2">Aucune tâche en attente pour le moment.</p>
+                                <p class="mb-0 mt-2">No pending tasks at the moment.</p>
                             </div>
                         }
                         else
@@ -145,17 +145,17 @@
             </div>
 
             <div class="col-lg-5">
-                <div class="card border-0 shadow-sm h-100">
+                <div class="card border-0 shadow-sm h-100 content-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="fw-semibold mb-0">Derniers fichiers</h5>
-                            <a href="/deliverables-register" class="small link-primary">Registre →</a>
+                            <h5 class="fw-semibold mb-0">Latest files</h5>
+                            <a href="/deliverables-register" class="small link-primary">Register →</a>
                         </div>
 
                         @if (latestFiles.Count == 0)
                         {
                             <div class="empty-state py-4">
-                                <p class="mb-0 small">Aucun fichier importé récemment.</p>
+                                <p class="mb-0 small">No files imported recently.</p>
                             </div>
                         }
                         else
@@ -165,7 +165,7 @@
                                 <div class="file-row d-flex justify-content-between gap-2">
                                     <div class="text-truncate">
                                         <strong class="d-block text-truncate">@file.FileName</strong>
-                                        <small class="text-muted">@file.ProjectName</small>
+                                        <small class="text-muted">@file.CategoryName</small>
                                     </div>
                                     <small class="text-muted shrink-0">@file.UploadDate.ToString("dd/MM/yy")</small>
                                 </div>
@@ -185,12 +185,12 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header border-0">
-                    <h5 class="modal-title fw-bold">⚠️ Attention — échéances proches</h5>
+                    <h5 class="modal-title fw-bold">⚠️ Attention — deadlines approaching</h5>
                     <button type="button" class="btn-close" @onclick="DismissUrgentModal"></button>
                 </div>
                 <div class="modal-body pt-0">
                     <p class="text-muted small mb-3">
-                        @urgentTasks.Count tâche(s) à traiter dans les 7 prochains jours ou déjà en retard.
+                        @urgentTasks.Count task(s) due within the next 7 days or already overdue.
                     </p>
                     <ul class="list-unstyled mb-0">
                         @foreach (var task in urgentTasks)
@@ -207,8 +207,8 @@
                     </ul>
                 </div>
                 <div class="modal-footer border-0">
-                    <button class="btn btn-outline-secondary" @onclick="DismissUrgentModal">Plus tard</button>
-                    <a href="/tasks" class="btn btn-danger" @onclick="DismissUrgentModal">Voir les tâches</a>
+                    <button class="btn btn-outline-secondary" @onclick="DismissUrgentModal">Later</button>
+                    <a href="/tasks" class="btn btn-danger" @onclick="DismissUrgentModal">View tasks</a>
                 </div>
             </div>
         </div>
@@ -281,8 +281,8 @@
         }
         catch
         {
-            dashboard.BackendStatus = "Erreur";
-            dashboard.Database = "Inconnue";
+            dashboard.BackendStatus = "Error";
+            dashboard.Database = "Unknown";
         }
         finally
         {
@@ -303,12 +303,12 @@
         {
             var response = await Http.PostAsync("api/sync/emails", null);
             syncMessage = response.IsSuccessStatusCode
-                ? "Synchronisation lancée avec succès."
-                : "Échec de la synchronisation. Réessayez.";
+                ? "Sync started successfully."
+                : "Sync failed. Please try again.";
         }
         catch
         {
-            syncMessage = "Backend inaccessible.";
+            syncMessage = "Backend unreachable.";
         }
         finally
         {
@@ -318,9 +318,9 @@
 
     private static string GetStatusLabel(string status) => status switch
     {
-        "Open" => "Ouverte",
-        "InProgress" => "En cours",
-        "Done" => "Terminée",
+        "Open" => "Open",
+        "InProgress" => "In progress",
+        "Done" => "Done",
         _ => status
     };
 
@@ -329,13 +329,13 @@
         var days = (deadline.Date - DateTime.Today).Days;
 
         if (days < 0)
-            return ("overdue", "bg-danger", $"En retard ({Math.Abs(days)} j)");
+            return ("overdue", "bg-danger", $"Overdue ({Math.Abs(days)} d)");
 
         if (days == 0)
-            return ("soon", "bg-danger", "Aujourd'hui");
+            return ("soon", "bg-danger", "Today");
 
         if (days <= UrgentDays)
-            return ("soon", "bg-warning text-dark", $"Dans {days} j");
+            return ("soon", "bg-warning text-dark", $"In {days} d");
 
         return ("ok", "bg-success", deadline.ToString("dd/MM/yyyy"));
     }
@@ -345,6 +345,6 @@
         public int Id { get; set; }
         public string FileName { get; set; } = "";
         public DateTime UploadDate { get; set; }
-        public string ProjectName { get; set; } = "";
+        public string CategoryName { get; set; } = "";
     }
 }

@@ -1,30 +1,41 @@
 @page "/ai-image-generator"
 @inject HttpClient Http
 
-<h3 class="fw-bold">🎨 Génération d’image par IA</h3>
+<div class="pmo-page">
+    <PmoPageHeader Icon="🎨"
+                   Title="AI image generation"
+                   Subtitle="Enter a description, then generate an image automatically." />
 
-<p class="text-muted">
-    Entrez une description, puis générez une image automatiquement.
-</p>
+    <div class="card shadow-sm border-0 content-card">
+        <div class="card-body p-4">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Image description</label>
+                <textarea class="form-control" rows="3" @bind="prompt"></textarea>
+            </div>
 
-<div class="mb-3">
-    <label class="form-label">Description de l’image</label>
-    <textarea class="form-control" rows="3"
-              @bind="prompt"></textarea>
-</div>
+            <button class="btn btn-primary"
+                    @onclick="GenerateImage"
+                    disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Generating...</span>
+                }
+                else
+                {
+                    <span>Generate</span>
+                }
+            </button>
 
-<button class="btn btn-primary"
-        @onclick="GenerateImage"
-        disabled="@isLoading">
-    @(isLoading ? "Génération en cours..." : "Générer")
-</button>
-
-@if (!string.IsNullOrWhiteSpace(imageUrl))
-{
-    <div class="mt-4">
-        <img src="@imageUrl" class="img-fluid rounded shadow" />
+            @if (!string.IsNullOrWhiteSpace(imageUrl))
+            {
+                <div class="mt-4">
+                    <img src="@imageUrl" class="img-fluid rounded shadow" alt="Generated image" />
+                </div>
+            }
+        </div>
     </div>
-}
+</div>
 
 @code {
     private string prompt = "";

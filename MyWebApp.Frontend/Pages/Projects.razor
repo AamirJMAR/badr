@@ -2,122 +2,57 @@
 @page "/projects"
 @inject HttpClient Http
 
-<div class="container mt-4">
+<div class="pmo-page">
+    <PmoPageHeader Icon="📂"
+                   Title="Categories"
+                   Subtitle="Fixed categories for organizing tasks and deliverables." />
 
-    <h1 class="fw-bold">📂 Catégories</h1>
-    <p class="text-muted">
-        Gérez vos catégories et les tâches qui leur sont associées.
-    </p>
-
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <h5 class="fw-bold">➕ Ajouter une catégorie</h5>
-
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Nom</label>
-                    <input class="form-control" @bind="newCategory.Name" />
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <h6 class="fw-bold">Tâches pour cette catégorie (optionnel)</h6>
-                @foreach (var task in newCategoryTasks)
-                {
-                    <div class="row g-3 align-items-end mb-3">
-                        <div class="col-md-5">
-                            <label class="form-label">Titre de la tâche</label>
-                            <input class="form-control" @bind="task.Title" />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Échéance</label>
-                            <input type="date" class="form-control"
-                                   @bind-value="task.Deadline"
-                                   @bind-value:format="yyyy-MM-dd" />
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Statut</label>
-                            <select class="form-select" @bind="task.Status">
-                                <option value="Open">Ouverte</option>
-                                <option value="InProgress">En cours</option>
-                                <option value="Done">Terminée</option>
-                            </select>
-                        </div>
-                        <div class="col-md-1">
-                            @if (newCategoryTasks.Count > 1)
-                            {
-                                <button class="btn btn-outline-danger" @onclick="() => RemoveCategoryTask(task)">−</button>
-                            }
-                        </div>
-                    </div>
-                }
-
-                <button class="btn btn-sm btn-outline-secondary" @onclick="AddCategoryTask">
-                    ➕ Ajouter une tâche
-                </button>
-            </div>
-
-            <button class="btn btn-primary mt-3" @onclick="AddCategory">
-                Enregistrer la catégorie
-            </button>
-        </div>
-    </div>
-
-    <div class="card shadow-sm border-0">
-        <div class="card-body">
-            <table class="table align-middle">
-                <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th class="text-center">Tâches</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var category in categories)
-                    {
+    <div class="card shadow-sm border-0 content-card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 data-table register-table">
+                    <thead>
                         <tr>
-                            <td class="fw-semibold">@category.Name</td>
-                            <td class="text-center">
-                                <a class="btn btn-sm btn-outline-primary"
-                                   href="/categories/@category.Id/tasks"
-                                   title="Voir les tâches de cette catégorie">
-                                    @category.TaskCount tâche@(category.TaskCount == 1 ? "" : "s")
-                                </a>
-                            </td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-outline-danger"
-                                        @onclick="() => DeleteCategory(category.Id)">
-                                    Supprimer
-                                </button>
-                            </td>
+                            <th class="ps-4">Name</th>
+                            <th class="text-center">Tasks</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var category in categories)
+                        {
+                            <tr class="data-row">
+                                <td class="fw-semibold ps-4">@category.Name</td>
+                                <td class="text-center">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       href="/categories/@category.Id/tasks"
+                                       title="View tasks for this category">
+                                        @category.TaskCount task@(category.TaskCount == 1 ? "" : "s")
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
 
             @if (!categories.Any())
             {
-                <p class="text-muted mb-0">Aucune catégorie pour le moment.</p>
+                <div class="p-4">
+                    <div class="empty-state-hint">
+                        <div class="empty-state-icon">📂</div>
+                        <div>
+                            <div class="empty-state-title">No categories available</div>
+                            <div class="empty-state-text">Categories are seeded automatically at startup.</div>
+                        </div>
+                    </div>
+                </div>
             }
         </div>
     </div>
-
 </div>
 
 @code {
     private List<CategoryDto> categories = new();
-
-    private CategoryCreateDto newCategory = new()
-    {
-        Deadline = DateTime.Today.AddDays(14),
-        Client = ""
-    };
-
-    private List<NewCategoryTask> newCategoryTasks = new()
-    {
-        new NewCategoryTask { Deadline = DateTime.Today, Status = "Open" }
-    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,88 +65,10 @@
                      ?? new List<CategoryDto>();
     }
 
-    private async Task AddCategory()
-    {
-        if (string.IsNullOrWhiteSpace(newCategory.Name))
-            return;
-
-        var response = await Http.PostAsJsonAsync("api/projects", newCategory);
-        if (!response.IsSuccessStatusCode)
-            return;
-
-        var created = await response.Content.ReadFromJsonAsync<CategoryDto>();
-
-        if (created != null)
-        {
-            foreach (var task in newCategoryTasks.Where(t => !string.IsNullOrWhiteSpace(t.Title)))
-            {
-                await Http.PostAsJsonAsync("api/tasks", new TaskCreateDto
-                {
-                    Title = task.Title,
-                    Deadline = task.Deadline,
-                    Status = task.Status,
-                    ProjectId = created.Id
-                });
-            }
-        }
-
-        newCategory = new CategoryCreateDto
-        {
-            Deadline = DateTime.Today.AddDays(14),
-            Client = ""
-        };
-
-        newCategoryTasks = new List<NewCategoryTask>
-        {
-            new NewCategoryTask { Deadline = DateTime.Today, Status = "Open" }
-        };
-
-        await LoadCategories();
-    }
-
-    private void AddCategoryTask()
-    {
-        newCategoryTasks.Add(new NewCategoryTask { Deadline = DateTime.Today, Status = "Open" });
-    }
-
-    private void RemoveCategoryTask(NewCategoryTask task)
-    {
-        newCategoryTasks.Remove(task);
-    }
-
-    private async Task DeleteCategory(int id)
-    {
-        var response = await Http.DeleteAsync($"api/projects/{id}");
-        if (response.IsSuccessStatusCode)
-            await LoadCategories();
-    }
-
     private class CategoryDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public int TaskCount { get; set; }
-    }
-
-    private class CategoryCreateDto
-    {
-        public string Name { get; set; } = "";
-        public string Client { get; set; } = "";
-        public DateTime Deadline { get; set; } = DateTime.Today;
-    }
-
-    private class NewCategoryTask
-    {
-        public string Title { get; set; } = "";
-        public DateTime Deadline { get; set; } = DateTime.Today;
-        public string Status { get; set; } = "Open";
-    }
-
-    private class TaskCreateDto
-    {
-        public string Title { get; set; } = "";
-        public DateTime Deadline { get; set; }
-        public string Status { get; set; } = "Open";
-        public int ProjectId { get; set; }
     }
 }

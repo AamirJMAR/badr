@@ -13,102 +13,96 @@
 <div class="@NavMenuCssClass nav-scrollable">
     <nav class="nav flex-column nav-menu-structured pt-2">
 
-        <!-- Accueil -->
         <section class="nav-section">
             <div class="nav-section-items">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="" Match="NavLinkMatch.All">
-                        <span class="nav-link-title">Tableau de bord</span>
-                        <span class="nav-link-sub">Vue d'ensemble et alertes</span>
+                        <span class="nav-link-title">Dashboard</span>
+                        <span class="nav-link-sub">Overview and alerts</span>
                     </NavLink>
                 </div>
             </div>
         </section>
 
-        <!-- Pilotage projet -->
         <section class="nav-section">
-            <h6 class="nav-section-title">Pilotage projet</h6>
+            <h6 class="nav-section-title">Category management</h6>
             <div class="nav-section-items">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/categories">
-                        <span class="nav-link-title">Catégories</span>
-                        <span class="nav-link-sub">Projets, échéances et regroupement</span>
+                        <span class="nav-link-title">Categories</span>
+                        <span class="nav-link-sub">Deadlines and task grouping</span>
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/tasks">
-                        <span class="nav-link-title">Tâches</span>
-                        <span class="nav-link-sub">Actions à réaliser par l'équipe</span>
+                        <span class="nav-link-title">Tasks</span>
+                        <span class="nav-link-sub">Actions for the team</span>
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/reports">
-                        <span class="nav-link-title">Rapports</span>
-                        <span class="nav-link-sub">Indicateurs et synthèse</span>
+                        <span class="nav-link-title">Reports</span>
+                        <span class="nav-link-sub">KPIs and summary</span>
                     </NavLink>
                 </div>
             </div>
         </section>
 
-        <!-- Livrables & documents -->
         <section class="nav-section">
-            <h6 class="nav-section-title">Livrables &amp; documents</h6>
+            <h6 class="nav-section-title">Deliverables &amp; documents</h6>
             <div class="nav-section-items">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/deliverables">
-                        <span class="nav-link-title">Chargement de fichiers</span>
-                        <span class="nav-link-sub">Importer et analyser un livrable</span>
+                        <span class="nav-link-title">File upload</span>
+                        <span class="nav-link-sub">Import and analyze a deliverable</span>
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/deliverables-register">
-                        <span class="nav-link-title">Fichiers enregistrés</span>
-                        <span class="nav-link-sub">Registre des documents importés</span>
+                        <span class="nav-link-title">Registered files</span>
+                        <span class="nav-link-sub">Imported documents register</span>
                     </NavLink>
                 </div>
             </div>
         </section>
 
-        <!-- Sources & synchronisation -->
         <section class="nav-section">
-            <h6 class="nav-section-title">Sources &amp; synchronisation</h6>
+            <h6 class="nav-section-title">Sources &amp; sync</h6>
             <div class="nav-section-items">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/emails">
                         <span class="nav-link-title">Emails</span>
-                        <span class="nav-link-sub">Extraction d'actions depuis Outlook</span>
+                        <span class="nav-link-sub">Extract actions from Outlook</span>
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/calendar">
-                        <span class="nav-link-title">Calendrier</span>
-                        <span class="nav-link-sub">Réunions, jalons et échéances</span>
+                        <span class="nav-link-title">Calendar</span>
+                        <span class="nav-link-sub">Meetings, milestones and deadlines</span>
                     </NavLink>
                 </div>
             </div>
         </section>
 
-        <!-- Gouvernance -->
         <section class="nav-section">
-            <h6 class="nav-section-title">Gouvernance</h6>
+            <h6 class="nav-section-title">Governance</h6>
             <div class="nav-section-items">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/pmo">
-                        <span class="nav-link-title">Vue PMO</span>
-                        <span class="nav-link-sub">Pilotage portfolio et KPI</span>
+                        <span class="nav-link-title">PMO view</span>
+                        <span class="nav-link-sub">Portfolio management and KPIs</span>
                     </NavLink>
                 </div>
             </div>
         </section>
 
-        <!-- Administration -->
         <section class="nav-section nav-section-last">
             <h6 class="nav-section-title">Administration</h6>
             <div class="nav-section-items">
                 <div class="nav-item px-3">
                     <NavLink class="nav-link nav-link-stacked" href="/users">
-                        <span class="nav-link-title">Utilisateurs</span>
-                        <span class="nav-link-sub">Accès et gestion de l'équipe</span>
+                        <span class="nav-link-title">Users</span>
+                        <span class="nav-link-sub">Access and team management</span>
                     </NavLink>
                 </div>
             </div>
@@ -121,8 +115,5 @@
     private bool collapseNavMenu = true;
     private string NavMenuCssClass => collapseNavMenu ? "collapse" : string.Empty;
 
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
 }

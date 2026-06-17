@@ -1,3 +1,9 @@
+/* Tasks — shared base: wwwroot/css/pmo-page-shared.css */
+
+.pmo-page {
+    padding: 0.5rem 0 1rem;
+}
+
 .tasks-table td,
 .tasks-table th {
     white-space: nowrap;

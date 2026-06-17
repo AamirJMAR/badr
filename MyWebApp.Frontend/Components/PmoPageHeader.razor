@@ -1,0 +1,33 @@
+<div class="page-header mb-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+        <div>
+            <div class="page-title-wrap">
+                @if (!string.IsNullOrEmpty(Icon))
+                {
+                    <span class="page-title-icon">@Icon</span>
+                }
+                <div>
+                    <h1 class="page-title mb-1">@Title</h1>
+                    @if (!string.IsNullOrWhiteSpace(Subtitle))
+                    {
+                        <p class="page-subtitle mb-0">@Subtitle</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (HeaderActions != null)
+        {
+            <div class="header-actions">
+                @HeaderActions
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "📄";
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
+}

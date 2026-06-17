@@ -1,51 +1,52 @@
 @page "/calendar/details/{Id:int}"
+@using MyWebApp.Frontend.Constants
+@using MyWebApp.Frontend.Helpers
 @inject HttpClient Http
 @inject NavigationManager Navigation
 
-<h1 class="fw-bold mb-4">📅 Meeting Details</h1>
+<div class="pmo-page">
+    <a href="/calendar" class="back-link">← Back to calendar</a>
 
 @if (calendarEvent == null)
 {
-    <div class="alert alert-info">
-        Loading meeting details...
+    <div class="card shadow-sm border-0 loading-card content-card">
+        <div class="card-body text-center py-5">
+            <div class="loading-icon mb-3">📅</div>
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 mb-0 text-muted">Loading meeting details...</p>
+        </div>
     </div>
 }
 else
 {
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-                <div>
-                    <h4 class="card-title mb-1">📌 @calendarEvent.Subject</h4>
-                    <p class="text-muted mb-0">
-                        🕒 @FormatDate(calendarEvent.StartTime) → @FormatDate(calendarEvent.EndTime)
-                    </p>
-                </div>
-                <button class="btn btn-info btn-sm" @onclick="AnalyzeCalendarEvent" disabled="@isAnalyzing">
-                    @if (isAnalyzing)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2"></span>
-                        <span>Analyzing...</span>
-                    }
-                    else
-                    {
-                        <span>🤖 AI Analysis</span>
-                    }
-                </button>
-            </div>
+    <PmoPageHeader Icon="📅"
+                   Title="@calendarEvent.Subject"
+                   Subtitle="@($"{FormatDate(calendarEvent.StartTime)} → {FormatDate(calendarEvent.EndTime)}")">
+        <HeaderActions>
+            <button class="btn btn-info btn-sm" @onclick="AnalyzeCalendarEvent" disabled="@isAnalyzing">
+                @if (isAnalyzing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Analyzing...</span>
+                }
+                else
+                {
+                    <span>🤖 AI Analysis</span>
+                }
+            </button>
+        </HeaderActions>
+    </PmoPageHeader>
 
-            <hr />
-
-            <p class="card-text">
+    <div class="card shadow-sm mb-4 content-card">
+        <div class="card-body p-4">
+            <p class="card-text mb-0">
                 👤 <strong>Organizer</strong><br />
                 @calendarEvent.Organizer
             </p>
 
             <hr />
 
-            <p class="card-text">
-                👥 <strong>Required Attendees</strong>
-            </p>
+            <p class="card-text mb-0">👥 <strong>Required Attendees</strong></p>
 
             @if (string.IsNullOrWhiteSpace(calendarEvent.RequiredAttendees))
             {
@@ -61,9 +62,7 @@ else
                 </ul>
             }
 
-            <p class="card-text mt-3">
-                👥 <strong>Optional Attendees</strong>
-            </p>
+            <p class="card-text mt-3">👥 <strong>Optional Attendees</strong></p>
 
             @if (string.IsNullOrWhiteSpace(calendarEvent.OptionalAttendees))
             {
@@ -81,26 +80,25 @@ else
 
             @if (!string.IsNullOrEmpty(aiError))
             {
-                <div class="alert alert-danger mt-3">@aiError</div>
+                <div class="alert alert-danger mt-3 mb-0">@aiError</div>
             }
-
-            <hr />
-
-            <button class="btn btn-secondary" @onclick="GoBack">
-                ⬅ Back to Calendar
-            </button>
         </div>
     </div>
 }
 
 @if (analysis != null)
 {
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    <div class="card shadow-sm mb-4 content-card">
+        <div class="card-body p-4">
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
-                    <label class="form-label">Project</label>
-                    <input class="form-control" @bind="analysis.ProjectName" />
+                    <label class="form-label">Category</label>
+                    <select class="form-select" @bind="selectedCategoryName">
+                        @foreach (var cat in CategoryConstants.FixedCategories)
+                        {
+                            <option value="@cat">@cat</option>
+                        }
+                    </select>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Client</label>
@@ -121,10 +119,10 @@ else
                 <span class="badge bg-secondary ms-2">@analysis.Category</span>
             </div>
 
-            @if (analysis != null && IsActionRequired())
+            @if (IsActionRequired())
             {
                 <div class="alert alert-warning">
-                    <strong>Action required:</strong> vérifiez les tâches et le statut si besoin.
+                    <strong>Action required:</strong> review the tasks and status if needed.
                 </div>
             }
 
@@ -134,11 +132,9 @@ else
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <div>
-                    <button type="button" class="btn btn-outline-primary btn-sm me-2" @onclick="AddTask">
-                        + Add task
-                    </button>
-                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm me-2" @onclick="AddTask">
+                    + Add task
+                </button>
                 <div class="text-muted small">You can delete tasks before reviewing.</div>
             </div>
 
@@ -159,7 +155,9 @@ else
                                 <input class="form-control" @bind="tasks[taskIndex].Title" />
                             </td>
                             <td>
-                                <input class="form-control" @bind="tasks[taskIndex].Deadline" placeholder="yyyy-MM-dd or TBD" />
+                                <input type="date" class="form-control"
+                                       @bind-value="tasks[taskIndex].Deadline"
+                                       @bind-value:format="yyyy-MM-dd" />
                             </td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveTask(taskIndex)">
@@ -176,10 +174,8 @@ else
 
 @if (analysis != null && tasks.Any())
 {
-    <div class="d-flex justify-content-center mt-3">
-        <button class="btn btn-success"
-                @onclick="CheckBeforeCreate"
-                disabled="@isCreatingTasks">
+    <div class="d-flex justify-content-center mt-3 mb-4">
+        <button class="btn btn-success" @onclick="CreateProjectTasks" disabled="@isCreatingTasks">
             @if (isCreatingTasks)
             {
                 <span class="spinner-border spinner-border-sm me-2"></span>
@@ -187,42 +183,23 @@ else
             }
             else
             {
-                <span>✅ Create tasks in project</span>
+                <span>✅ Create tasks</span>
             }
         </button>
     </div>
 }
 
-@if (showConfirm)
-{
-    <div class="alert alert-warning mt-4">
-        <strong>Project already exists</strong>
-        <p>
-            The project <strong>@(analysis?.ProjectName ?? calendarEvent?.Subject)</strong> already exists.<br />
-            Do you want to add the detected tasks to this project?
-        </p>
-
-        <button class="btn btn-success me-2" @onclick="CreateProjectTasks">
-            ✅ Confirm
-        </button>
-
-        <button class="btn btn-secondary" @onclick="() => showConfirm = false">
-            ❌ Cancel
-        </button>
-    </div>
-}
+</div>
 
 @code {
-
-    [Parameter]
-    public int Id { get; set; }
+    [Parameter] public int Id { get; set; }
 
     private CalendarEvent? calendarEvent;
     private CalendarAnalysisResponse? analysis;
     private List<CalendarTask> tasks = new();
-    private bool isAnalyzing = false;
-    private bool isCreatingTasks = false;
-    private bool showConfirm = false;
+    private string selectedCategoryName = CategoryConstants.DefaultCategory;
+    private bool isAnalyzing;
+    private bool isCreatingTasks;
     private string? aiError;
 
     protected override async Task OnInitializedAsync()
@@ -233,7 +210,6 @@ else
         {
             analysis = new CalendarAnalysisResponse
             {
-                ProjectName = calendarEvent.AiProjectName ?? string.Empty,
                 Client = calendarEvent.AiClient ?? string.Empty,
                 Status = calendarEvent.AiStatus ?? "OnTrack",
                 Category = calendarEvent.AiCategory ?? string.Empty,
@@ -241,13 +217,13 @@ else
                 Tasks = ParseTasks(calendarEvent.AiRecommendations)
             };
             tasks = analysis.Tasks.ToList();
+            selectedCategoryName = CategoryConstants.ResolveName(calendarEvent.AiProjectName);
         }
     }
 
     private async Task AnalyzeCalendarEvent()
     {
-        if (calendarEvent == null)
-            return;
+        if (calendarEvent == null) return;
 
         isAnalyzing = true;
         aiError = null;
@@ -261,8 +237,8 @@ else
             {
                 var errBody = await response.Content.ReadAsStringAsync();
                 aiError = string.IsNullOrWhiteSpace(errBody)
-                    ? $"Analyse IA échouée : {response.ReasonPhrase}"
-                    : $"Analyse IA échouée : {errBody}";
+                    ? $"AI analysis failed: {response.ReasonPhrase}"
+                    : $"AI analysis failed: {errBody}";
                 return;
             }
 
@@ -274,7 +250,12 @@ else
             }
 
             analysis = result;
-            tasks = result.Tasks.ToList();
+            selectedCategoryName = CategoryConstants.ResolveName(result.CategoryName ?? result.ProjectName);
+            tasks = result.Tasks.Select(t => new CalendarTask
+            {
+                Title = t.Title,
+                Deadline = DeadlineHelper.Normalize(t.Deadline)
+            }).ToList();
         }
         catch (Exception ex)
         {
@@ -288,76 +269,27 @@ else
 
     private void AddTask()
     {
-        tasks.Add(new CalendarTask { Title = string.Empty, Deadline = "TBD" });
+        tasks.Add(new CalendarTask { Title = string.Empty, Deadline = DeadlineHelper.DefaultDeadline });
     }
 
     private void RemoveTask(int index)
     {
         if (index >= 0 && index < tasks.Count)
-        {
             tasks.RemoveAt(index);
-        }
-    }
-
-    private async Task CheckBeforeCreate()
-    {
-        if (analysis == null || !tasks.Any())
-            return;
-
-        isCreatingTasks = true;
-        showConfirm = false;
-        aiError = null;
-
-        try
-        {
-            var projectName = string.IsNullOrWhiteSpace(analysis.ProjectName)
-                ? calendarEvent?.Subject ?? "Calendar Project"
-                : analysis.ProjectName;
-
-            var response = await Http.PostAsJsonAsync("api/calendar/check-project", projectName);
-            var result = await response.Content.ReadFromJsonAsync<ProjectCheckResult>();
-
-            if (result == null)
-            {
-                aiError = "Unable to verify project.";
-                return;
-            }
-
-            if (result.Exists)
-            {
-                showConfirm = true;
-            }
-            else
-            {
-                await CreateProjectTasks();
-            }
-        }
-        catch (Exception ex)
-        {
-            aiError = ex.Message;
-        }
-        finally
-        {
-            isCreatingTasks = false;
-        }
     }
 
     private async Task CreateProjectTasks()
     {
-        if (analysis == null || !tasks.Any())
-            return;
+        if (analysis == null || !tasks.Any()) return;
 
         isCreatingTasks = true;
-        showConfirm = false;
         aiError = null;
 
         try
         {
             var request = new CreateProjectTasksRequest
             {
-                ProjectName = string.IsNullOrWhiteSpace(analysis.ProjectName)
-                    ? calendarEvent?.Subject ?? "Calendar Project"
-                    : analysis.ProjectName,
+                CategoryName = selectedCategoryName,
                 Client = analysis.Client,
                 Status = analysis.Status,
                 Category = analysis.Category,
@@ -365,9 +297,7 @@ else
                 Tasks = tasks.Select(t => new CreateTaskDto
                 {
                     Title = t.Title,
-                    Deadline = DateTime.TryParse(t.Deadline, out var date)
-                        ? date
-                        : DateTime.UtcNow
+                    Deadline = t.Deadline
                 }).ToList()
             };
 
@@ -412,11 +342,6 @@ else
         }
     }
 
-    private class ProjectCheckResult
-    {
-        public bool Exists { get; set; }
-    }
-
     private class CreateResult
     {
         public int ProjectId { get; set; }
@@ -424,7 +349,7 @@ else
 
     private class CreateProjectTasksRequest
     {
-        public string ProjectName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string Client { get; set; } = string.Empty;
         public string Status { get; set; } = "OnTrack";
         public string Category { get; set; } = string.Empty;
@@ -438,18 +363,9 @@ else
         public DateTime Deadline { get; set; }
     }
 
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/calendar");
-    }
+    private void GoBack() => Navigation.NavigateTo("/calendar");
 
-    private string FormatDate(DateTime? date)
-    {
-        if (date == null)
-            return "N/A";
-
-        return date.Value.ToString("dd/MM/yyyy HH:mm");
-    }
+    private string FormatDate(DateTime? date) => date?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
 
     private string GetStatusBadgeClass(string status) => status switch
     {
@@ -460,24 +376,20 @@ else
 
     private bool IsActionRequired()
     {
-        if (analysis == null)
-            return false;
+        if (analysis == null) return false;
 
         return analysis.Category?.Contains("Action Required", StringComparison.OrdinalIgnoreCase) == true
             || analysis.Status == "AtRisk"
             || analysis.Status == "Delayed";
     }
 
-    private IEnumerable<string> SplitAttendees(string attendees)
-    {
-        // Nettoyage simple du texte renvoyé par Power Automate
-        return attendees
+    private IEnumerable<string> SplitAttendees(string attendees) =>
+        attendees
             .Replace("[", "")
             .Replace("]", "")
             .Replace("\"", "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(a => a.Trim());
-    }
 
     private class CalendarEvent
     {
@@ -488,7 +400,6 @@ else
         public string? Organizer { get; set; }
         public string? RequiredAttendees { get; set; }
         public string? OptionalAttendees { get; set; }
-
         public string? AiProjectName { get; set; }
         public string? AiClient { get; set; }
         public string? AiStatus { get; set; }
@@ -501,6 +412,7 @@ else
     private class CalendarAnalysisResponse
     {
         public string ProjectName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string Client { get; set; } = string.Empty;
         public string Status { get; set; } = "OnTrack";
         public string Category { get; set; } = string.Empty;
@@ -511,6 +423,6 @@ else
     private class CalendarTask
     {
         public string Title { get; set; } = string.Empty;
-        public string Deadline { get; set; } = string.Empty;
+        public DateTime Deadline { get; set; } = DeadlineHelper.DefaultDeadline;
     }
 }

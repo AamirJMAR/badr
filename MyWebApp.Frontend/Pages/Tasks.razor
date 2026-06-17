@@ -1,20 +1,21 @@
 @page "/tasks"
 @inject HttpClient Http
 
-<div class="container mt-4">
+<div class="pmo-page">
 
-    <h1 class="fw-bold">✅ Tâches</h1>
-    <p class="text-muted">
-        Gérez les tâches de vos projets. La couleur du nom indique l'urgence de l'échéance.
-    </p>
+    <PmoPageHeader Icon="✅"
+                   Title="Tasks"
+                   Subtitle="Manage tasks across categories. Title color indicates deadline urgency." />
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <h5 class="fw-bold">➕ Ajouter une tâche</h5>
+    <div class="card shadow-sm border-0 mb-4 content-card">
+        <div class="card-body p-4">
+            <div class="section-heading mb-4">
+                <h5 class="fw-bold mb-1">Add a task</h5>
+            </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label">Catégorie</label>
+                <label class="form-label">Category</label>
                 <select class="form-select" @bind="newTask.ProjectId">
-                    <option value="">— Sélectionner —</option>
+                    <option value="">— Select —</option>
                     @foreach (var project in projects)
                     {
                         <option value="@project.Id">@project.Name</option>
@@ -24,12 +25,12 @@
 
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Titre</label>
+                    <label class="form-label">Title</label>
                     <input class="form-control" @bind="newTask.Title" />
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Échéance</label>
+                    <label class="form-label">Deadline</label>
                     <input type="date"
                            class="form-control"
                            @bind-value="newTask.Deadline"
@@ -37,38 +38,38 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Statut</label>
+                    <label class="form-label">Status</label>
                     <select class="form-select" @bind="newTask.Status">
-                        <option value="Open">Ouverte</option>
-                        <option value="InProgress">En cours</option>
-                        <option value="Done">Terminée</option>
+                        <option value="Open">Open</option>
+                        <option value="InProgress">In progress</option>
+                        <option value="Done">Done</option>
                     </select>
                 </div>
             </div>
 
             <button class="btn btn-primary mt-3" @onclick="AddTask">
-                ➕ Ajouter
+                ➕ Add
             </button>
         </div>
     </div>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body">
+    <div class="card shadow-sm border-0 content-card">
+        <div class="card-body p-4">
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
-                    <label class="form-label">Filtrer par statut</label>
+                    <label class="form-label">Filter by status</label>
                     <select class="form-select" @bind="statusFilter">
-                        <option value="">Tous</option>
-                        <option value="Open">Ouverte</option>
-                        <option value="InProgress">En cours</option>
-                        <option value="Done">Terminée</option>
+                        <option value="">All</option>
+                        <option value="Open">Open</option>
+                        <option value="InProgress">In progress</option>
+                        <option value="Done">Done</option>
                     </select>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Filtrer par catégorie</label>
+                    <label class="form-label">Filter by category</label>
                     <select class="form-select" @bind="projectFilterId">
-                        <option value="0">Toutes</option>
+                        <option value="0">All</option>
                         @foreach (var project in projects)
                         {
                             <option value="@project.Id">@project.Name</option>
@@ -77,32 +78,32 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Tri par échéance</label>
+                    <label class="form-label">Sort by deadline</label>
                     <div class="input-group">
                         <button class="btn btn-outline-primary" @onclick="() => SetDeadlineSort(true)">
-                            Croissant
+                            Ascending
                         </button>
                         <button class="btn btn-outline-primary" @onclick="() => SetDeadlineSort(false)">
-                            Décroissant
+                            Descending
                         </button>
                     </div>
                 </div>
             </div>
 
             <div class="d-flex flex-wrap gap-3 mb-3 small text-muted">
-                <span><span class="task-title-cell task-title-far d-inline-block">■</span> Échéance &gt; 7 jours</span>
-                <span><span class="task-title-cell task-title-soon d-inline-block">■</span> Échéance dans 7 jours</span>
-                <span><span class="task-title-cell task-title-overdue d-inline-block">■</span> Aujourd'hui ou dépassée</span>
+                <span><span class="task-title-cell task-title-far d-inline-block">■</span> Deadline &gt; 7 days</span>
+                <span><span class="task-title-cell task-title-soon d-inline-block">■</span> Deadline within 7 days</span>
+                <span><span class="task-title-cell task-title-overdue d-inline-block">■</span> Today or overdue</span>
             </div>
 
             <div class="table-responsive">
-            <table class="table align-middle tasks-table mb-0">
+            <table class="table align-middle tasks-table mb-0 data-table register-table">
                 <thead>
                     <tr>
-                        <th class="task-title-col">Titre</th>
-                        <th>Catégorie</th>
-                        <th>Échéance</th>
-                        <th>Statut</th>
+                        <th class="task-title-col">Title</th>
+                        <th>Category</th>
+                        <th>Deadline</th>
+                        <th>Status</th>
                         <th class="text-center">Actions</th>
                     </tr>
                 </thead>
@@ -114,7 +115,7 @@
                         var displayStatus = editingTaskId == task.Id ? editTask.Status : task.Status;
                         var titleClass = GetDeadlineTitleClass(displayDeadline);
 
-                        <tr>
+                        <tr class="data-row">
                             <td class="task-title-col">
                                 @if (editingTaskId == task.Id)
                                 {
@@ -161,15 +162,15 @@
                                 <div class="btn-group btn-group-sm ms-1 flex-nowrap">
                                     @if (editingTaskId == task.Id)
                                     {
-                                        <button class="btn btn-outline-secondary" @onclick="SetEditOpen">Ouverte</button>
-                                        <button class="btn btn-outline-info" @onclick="SetEditInProgress">En cours</button>
-                                        <button class="btn btn-outline-success" @onclick="SetEditDone">Terminée</button>
+                                        <button class="btn btn-outline-secondary" @onclick="SetEditOpen">Open</button>
+                                        <button class="btn btn-outline-info" @onclick="SetEditInProgress">In progress</button>
+                                        <button class="btn btn-outline-success" @onclick="SetEditDone">Done</button>
                                     }
                                     else
                                     {
-                                        <button class="btn btn-outline-secondary" @onclick="() => SetOpen(task.Id)">Ouverte</button>
-                                        <button class="btn btn-outline-info" @onclick="() => SetInProgress(task.Id)">En cours</button>
-                                        <button class="btn btn-outline-success" @onclick="() => SetDone(task.Id)">Terminée</button>
+                                        <button class="btn btn-outline-secondary" @onclick="() => SetOpen(task.Id)">Open</button>
+                                        <button class="btn btn-outline-info" @onclick="() => SetInProgress(task.Id)">In progress</button>
+                                        <button class="btn btn-outline-success" @onclick="() => SetDone(task.Id)">Done</button>
                                     }
                                 </div>
                             </td>
@@ -177,13 +178,13 @@
                             <td class="text-center">
                                 @if (editingTaskId == task.Id)
                                 {
-                                    <button class="btn btn-sm btn-success me-1" title="Enregistrer" @onclick="SaveEdit">✅</button>
-                                    <button class="btn btn-sm btn-secondary me-1" title="Annuler" @onclick="CancelEdit">❌</button>
+                                    <button class="btn btn-sm btn-success me-1" title="Save" @onclick="SaveEdit">✅</button>
+                                    <button class="btn btn-sm btn-secondary me-1" title="Cancel" @onclick="CancelEdit">❌</button>
                                 }
                                 else
                                 {
-                                    <button class="btn btn-sm btn-warning me-1" title="Modifier" @onclick="() => StartEdit(task)">✏️</button>
-                                    <button class="btn btn-sm btn-danger" title="Supprimer" @onclick="() => DeleteTask(task.Id)">🗑️</button>
+                                    <button class="btn btn-sm btn-warning me-1" title="Edit" @onclick="() => StartEdit(task)">✏️</button>
+                                    <button class="btn btn-sm btn-danger" title="Delete" @onclick="() => DeleteTask(task.Id)">🗑️</button>
                                 }
                             </td>
                         </tr>
@@ -194,7 +195,7 @@
 
             @if (!FilteredTasks().Any())
             {
-                <p class="text-muted mb-0">Aucune tâche pour le moment.</p>
+                <p class="text-muted mb-0">No tasks yet.</p>
             }
         </div>
     </div>
@@ -333,9 +334,9 @@
 
     private static string GetStatusLabel(string status) => status switch
     {
-        "Open" => "Ouverte",
-        "InProgress" => "En cours",
-        "Done" => "Terminée",
+        "Open" => "Open",
+        "InProgress" => "In progress",
+        "Done" => "Done",
         _ => status
     };
 

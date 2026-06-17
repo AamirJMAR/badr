@@ -1,10 +1,11 @@
-@inject HttpClient Http
+@using MyWebApp.Frontend.Constants
+@using MyWebApp.Frontend.Helpers
 
 @if (Visible && Analysis != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
+            <div class="modal-content app-modal border-0 shadow">
                 <div class="modal-header">
                     <h5 class="modal-title">@Title</h5>
                     @if (BulkProgress != null)
@@ -22,16 +23,21 @@
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label">Projet</label>
-                            <input class="form-control" @bind="editableProjectName" />
+                            <label class="form-label">Category</label>
+                            <select class="form-select" @bind="editableCategoryName" disabled="@IsBusy">
+                                @foreach (var cat in CategoryConstants.FixedCategories)
+                                {
+                                    <option value="@cat">@cat</option>
+                                }
+                            </select>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Client</label>
-                            <input class="form-control" @bind="editableClient" />
+                            <input class="form-control" @bind="editableClient" disabled="@IsBusy" />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Statut</label>
-                            <select class="form-select" @bind="editableStatus">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" @bind="editableStatus" disabled="@IsBusy">
                                 <option value="OnTrack">OnTrack</option>
                                 <option value="AtRisk">AtRisk</option>
                                 <option value="Delayed">Delayed</option>
@@ -41,31 +47,34 @@
 
                     <div class="mb-3">
                         <span class="badge @GetStatusBadgeClass(editableStatus)">@editableStatus</span>
-                        <span class="badge bg-secondary ms-2">@editableCategory</span>
+                        @if (!string.IsNullOrWhiteSpace(editableCategory))
+                        {
+                            <span class="badge bg-secondary ms-2">@editableCategory</span>
+                        }
                     </div>
 
                     <div class="mb-3">
-                        <strong>Résumé</strong>
+                        <strong>Summary</strong>
                         <p class="mb-0">@editableSummary</p>
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddTask" disabled="@IsBusy">
-                            + Ajouter une tâche
+                            + Add task
                         </button>
-                        <span class="text-muted small">Modifiez ou supprimez les tâches avant validation.</span>
+                        <span class="text-muted small">Edit or remove tasks before confirming.</span>
                     </div>
 
                     <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Tâche</th>
-                                <th>Échéance</th>
+                                <th>Task</th>
+                                <th>Deadline</th>
                                 <th style="width: 100px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @for (int i = 0; i <editableTasks.Count; i++)
+                            @for (int i = 0; i < editableTasks.Count; i++)
                             {
                                 var taskIndex = i;
                                 <tr>
@@ -73,55 +82,40 @@
                                         <input class="form-control" @bind="editableTasks[taskIndex].Title" disabled="@IsBusy" />
                                     </td>
                                     <td>
-                                        <input class="form-control" @bind="editableTasks[taskIndex].Deadline"
-                                               placeholder="yyyy-MM-dd ou TBD" disabled="@IsBusy" />
+                                        <input type="date" class="form-control"
+                                               @bind-value="editableTasks[taskIndex].Deadline"
+                                               @bind-value:format="yyyy-MM-dd"
+                                               disabled="@IsBusy" />
                                     </td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-outline-danger"
                                                 @onclick="() => RemoveTask(taskIndex)" disabled="@IsBusy">
-                                            Supprimer
+                                            Delete
                                         </button>
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
-
-                    @if (showProjectConfirm)
-                    {
-                        <div class="alert alert-warning mt-3">
-                            <strong>Projet déjà existant</strong>
-                            <p class="mb-2">
-                                Le projet <strong>@editableProjectName</strong> existe déjà.
-                                Voulez-vous ajouter ces tâches à ce projet ?
-                            </p>
-                            <button class="btn btn-success btn-sm me-2" @onclick="ConfirmWithExistingProject" disabled="@IsBusy">
-                                Confirmer
-                            </button>
-                            <button class="btn btn-secondary btn-sm" @onclick="() => showProjectConfirm = false" disabled="@IsBusy">
-                                Retour
-                            </button>
-                        </div>
-                    }
                 </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="HandleCancel" disabled="@IsBusy">
-                        Annuler
+                        Cancel
                     </button>
                     @if (ShowSkipButton)
                     {
                         <button type="button" class="btn btn-outline-secondary" @onclick="HandleSkip" disabled="@IsBusy">
-                            Passer
+                            Skip
                         </button>
                     }
-                    <button type="button" class="btn btn-success" @onclick="HandleValidateClick"
-                            disabled="@(IsBusy || !editableTasks.Any() || showProjectConfirm)">
+                    <button type="button" class="btn btn-success" @onclick="SubmitConfirm"
+                            disabled="@(IsBusy || !editableTasks.Any())">
                         @if (IsBusy)
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
                         }
-                        Valider et créer les tâches
+                        Create tasks
                     </button>
                 </div>
             </div>
@@ -131,9 +125,8 @@
 
 @code {
     [Parameter] public bool Visible { get; set; }
-    [Parameter] public string Title { get; set; } = "Revue analyse IA";
+    [Parameter] public string Title { get; set; } = "AI Analysis Review";
     [Parameter] public PmoAnalysisPreview? Analysis { get; set; }
-    [Parameter] public string CheckProjectApiUrl { get; set; } = "api/emaillogs/check-project";
     [Parameter] public string? BulkProgress { get; set; }
     [Parameter] public bool ShowSkipButton { get; set; }
     [Parameter] public bool IsBusy { get; set; }
@@ -142,20 +135,23 @@
     [Parameter] public EventCallback OnSkip { get; set; }
     [Parameter] public EventCallback<AiTasksConfirmPayload> OnConfirm { get; set; }
 
-    private string editableProjectName = string.Empty;
+    private string editableCategoryName = CategoryConstants.DefaultCategory;
     private string editableClient = string.Empty;
     private string editableStatus = "OnTrack";
     private string editableCategory = string.Empty;
     private string editableSummary = string.Empty;
     private List<PmoAnalysisTaskRow> editableTasks = new();
-    private bool showProjectConfirm;
 
     protected override void OnParametersSet()
     {
         if (Analysis == null)
             return;
 
-        editableProjectName = Analysis.ProjectName;
+        var suggested = !string.IsNullOrWhiteSpace(Analysis.CategoryName)
+            ? Analysis.CategoryName
+            : Analysis.ProjectName;
+
+        editableCategoryName = CategoryConstants.ResolveName(suggested);
         editableClient = Analysis.Client;
         editableStatus = Analysis.Status;
         editableCategory = Analysis.Category;
@@ -163,14 +159,17 @@
         editableTasks = Analysis.Tasks.Select(t => new PmoAnalysisTaskRow
         {
             Title = t.Title,
-            Deadline = t.Deadline
+            Deadline = DeadlineHelper.Normalize(t.Deadline)
         }).ToList();
-        showProjectConfirm = false;
     }
 
     private void AddTask()
     {
-        editableTasks.Add(new PmoAnalysisTaskRow { Title = string.Empty, Deadline = "TBD" });
+        editableTasks.Add(new PmoAnalysisTaskRow
+        {
+            Title = string.Empty,
+            Deadline = DeadlineHelper.DefaultDeadline
+        });
     }
 
     private void RemoveTask(int index)
@@ -179,41 +178,14 @@
             editableTasks.RemoveAt(index);
     }
 
-    private async Task HandleValidateClick()
+    private async Task SubmitConfirm()
     {
         if (!editableTasks.Any())
             return;
 
-        var projectName = string.IsNullOrWhiteSpace(editableProjectName) ? Title : editableProjectName;
-
-        try
-        {
-            var response = await Http.PostAsJsonAsync(CheckProjectApiUrl, projectName);
-            var result = await response.Content.ReadFromJsonAsync<ProjectCheckResult>();
-
-            if (result?.Exists == true)
-            {
-                showProjectConfirm = true;
-                return;
-            }
-        }
-        catch
-        {
-            // Si la vérification échoue, on laisse l'utilisateur valider quand même
-        }
-
-        await SubmitConfirm();
-    }
-
-    private async Task ConfirmWithExistingProject() => await SubmitConfirm();
-
-    private async Task SubmitConfirm()
-    {
-        showProjectConfirm = false;
-
         var payload = new AiTasksConfirmPayload
         {
-            ProjectName = string.IsNullOrWhiteSpace(editableProjectName) ? Title : editableProjectName,
+            CategoryName = editableCategoryName,
             Client = editableClient,
             Status = editableStatus,
             Category = editableCategory,
@@ -234,9 +206,4 @@
         "Delayed" => "bg-danger",
         _ => "bg-success"
     };
-
-    private class ProjectCheckResult
-    {
-        public bool Exists { get; set; }
-    }
 }

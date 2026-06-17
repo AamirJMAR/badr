@@ -1,0 +1,9 @@
+/* Emails register — base styles: wwwroot/css/pmo-page-shared.css */
+
+.pmo-page {
+    padding: 0.5rem 0 1rem;
+}
+
+.list-item-card {
+    cursor: pointer;
+}

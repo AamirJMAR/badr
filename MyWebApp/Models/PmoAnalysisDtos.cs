@@ -8,12 +8,13 @@ namespace MyWebApp.Models
     public class PmoAnalysisTaskDto
     {
         public string Title { get; set; } = string.Empty;
-        public string Deadline { get; set; } = "TBD";
+        public DateTime Deadline { get; set; }
     }
 
     public class PmoAnalysisPreviewDto
     {
         public string ProjectName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string Client { get; set; } = string.Empty;
         public string Status { get; set; } = "OnTrack";
         public string Category { get; set; } = string.Empty;

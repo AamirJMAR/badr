@@ -1,0 +1,23 @@
+/* AI tasks review modal — base styles: wwwroot/css/pmo-page-shared.css */
+
+.modal-content {
+    border-radius: 20px;
+    overflow: hidden;
+    border: none;
+}
+
+.modal-header {
+    background: linear-gradient(180deg, #fbfcfe 0%, #f7f9fc 100%);
+    border-bottom: 1px solid #eef2f7;
+}
+
+::deep .form-control,
+::deep .form-select {
+    border-radius: 12px;
+    border-color: #d0d5dd;
+}
+
+::deep .btn {
+    border-radius: 12px;
+    font-weight: 500;
+}
