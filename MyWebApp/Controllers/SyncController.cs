@@ -51,7 +51,7 @@ namespace MyWebApp.Controllers
                     return Ok(new
                     {
                         Status = "DemoSuccess",
-                        DemoMode = true,
+                        DemoMode = false,
                         result.WasUpdated,
                         result.Id,
                         Message = result.Message
